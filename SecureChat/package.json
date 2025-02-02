@@ -11,6 +11,7 @@
   "author": "Dylan Werelius & Victoria Guzman",
   "license": "ISC",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "ws": "^8.18.0"
   }
 }

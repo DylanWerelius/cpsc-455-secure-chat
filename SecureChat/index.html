@@ -1,8 +1,8 @@
 <!-- In simple terms, this is the front-end code -->
-<!-- Written by Dylan Werelius -->
+<!-- Written by Dylan Werelius & Victoria Guzman -->
 <!-- Reference: https://youtu.be/TItbp7c9MNQ -->
 
-<html>
+<html lang="en">
     <head>
         <title>SecureChat</title>
         <meta charset="UTF-8" />
@@ -10,7 +10,20 @@
         <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
     </head>
 
-    <body>
+    <body class = "flex flex-col items-center justify-center h-screen bg-gray-100">
+        <h1 class = "text-2xl font-bold mb-4">SecureChat</h1>
+
+        <!-- register form & login form -->
+        <div id="auth-section" class="p-4 bg-white shadow-md rounded-lg">
+            <h2 class="text-xl font-semibolf mb-2">Register /Login</h2>
+            <input id="username" type="text" placeholder="Username" class="border px-3 py-2 mb-2 w-full rounded"/>
+            <input id="password" type="password" placeholder="Password" class="border px-3 py-2 mb-2 w-full rounded"/>
+            <button onclick="register()" class="bg-green-500 text-white px-4 py-2 rounded w-full mb-2">Register</button>
+            <button onclick="login()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">Login</button>
+            <p id="auth-error" class="text-red-500 mt-2 text-sm hidden"></p>
+        </div>
+
+        <!-- Chat section(Hidden until logged in)-->
         <div class="h-screen w-screen flex flex-col justify-between">
             <div id="chat" class="p-3 overflow-auto">
                 <!-- This is where the messages will go -->
@@ -25,12 +38,49 @@
         <script>
             // Make sure this is the same port as the one in index.js
             const ws = new WebSocket("ws://localhost:3000");
+            let token = "";
+
+            ws.onopen = () => console.log("Connected to the server>");
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === "auth"){
+                    token = data.token;
+                    alert("Logged in Successfully!");
+                    document.getElementById("auth-section").classList.add("hidden");
+                    document.getElementById("chat-section").classList.remove("hidden");
+                } else if (data.type === "message") {
+                    addMessage(data.data);
+                } else if (data.type === "error") {
+                    alert(data.message);
+                }
+            };
+            // register a new user (victoria)
+            function register() {
+                const username = document.getElementById("username").value;
+                const password = document.getElementById("password").value;
+                if (!username || !password) return showError("Please enter a username and password.");
+                ws.send(JSON.stringify({ type: "register", username, password }));
+            }
+
+            // user authentication (login) (victoria)
+            function login() {
+                const username = document.getElementById("username").value;
+                const password = document.getElementById("password").value;
+                if (!username || !password) return showError("Please enter a username and password.");
+                ws.send(JSON.stringify({ type: "login", username, password }));
+            }
 
             ws.addEventListener("message", function(event) {
                 const data = JSON.parse(event.data);
 
-                if (data.type == "message") {
+                if (data.type == "auth") {
+                    token = data.token;
+                    alert("Logged in Successfully!");
+                } else if (data.type == "message") {
                     addMessage(data.data);
+                } else if (data.type == "error") {
+                    alert(data.message);
                 }
             });
 
@@ -38,11 +88,11 @@
                 const message = document.getElementById("message").value;
 
                 // This will catch if the user just clicks the send button with nothing in the text box
-                if (!message) return false;
+                if (!message || !token) return showError("You must be logged in to send a message.");
 
-                ws.send(JSON.stringify({ type: "message", data: message }));
+                ws.send(JSON.stringify({ type: "message", token, data: message }));
 
-                addMessage(message);
+                addMessage(`You: ${message}`);
                 document.getElementById("message").value = "";
             }
 
@@ -55,6 +105,12 @@
 
                 // This will add the message to the chat on the users' screen
                 document.getElementById("chat").appendChild(node);
+            }
+
+            function showError(message) {
+                const errorElement = document.getElementById("auth-error");
+                errorElement.textContent = message;
+                errorElement.classList.remove("hidden");
             }
         </script>
     </body>
