@@ -24,8 +24,8 @@
         </div>
 
         <!-- Chat section(Hidden until logged in)-->
-        <div class="h-screen w-screen flex flex-col justify-between">
-            <div id="chat" class="p-3 overflow-auto">
+        <div id="chat-section" class="h-screen w-screen flex flex-col justify-between hidden">
+            <div id="chat-box" class="p-3 overflow-auto">
                 <!-- This is where the messages will go -->
             </div>
             <div class="flex">
@@ -71,19 +71,6 @@
                 ws.send(JSON.stringify({ type: "login", username, password }));
             }
 
-            ws.addEventListener("message", function(event) {
-                const data = JSON.parse(event.data);
-
-                if (data.type == "auth") {
-                    token = data.token;
-                    alert("Logged in Successfully!");
-                } else if (data.type == "message") {
-                    addMessage(data.data);
-                } else if (data.type == "error") {
-                    alert(data.message);
-                }
-            });
-
             function sendMessage() {
                 const message = document.getElementById("message").value;
 
@@ -96,6 +83,13 @@
                 document.getElementById("message").value = "";
             }
 
+            document.getElementById("message").addEventListener("keydown", function(event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    sendMessage();
+                }
+            });
+
             function addMessage(message) {
                 const node = document.createElement("P");
                 const text = document.createTextNode(message);
@@ -104,7 +98,7 @@
                 node.classList.add("text-gray-700", "py-1");
 
                 // This will add the message to the chat on the users' screen
-                document.getElementById("chat").appendChild(node);
+                document.getElementById("chat-box").appendChild(node);
             }
 
             function showError(message) {
