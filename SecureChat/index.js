@@ -10,7 +10,8 @@ dotenv.config();
 
 const SECRET_KEY = process.env.SECRET_KEY;// REPLACE WITH YOUR SECRET KEY
 const users = new Map(); //store users (username -> hashed password)
-const messageRateLimt = new Map(); //stores last message timestamp per user 
+const messageRateLimt = new Map(); //stores last message timestamp per user
+const onlineUsers = new Map(); //stores active websocket connectins
 
 
 // Make sure this is the same port aas index.html
@@ -51,12 +52,19 @@ wss.on("connection", function connection(ws) {
            }
            const token = jwt.sign({ username: data.username }, SECRET_KEY, {expiresIn: "1hr"});
            ws.send(JSON.stringify({type: "auth", token}));
+
+           //Store user connections 
+           if (!onlineUsers.has(data.username))
+           onlineUsers.set(ws, data.username);
+           broadcastMessage(`${data.username} has joined the chat.`);
+
         } else if (data.type === "message") {
             //Authenticate token before allowing messages
             try{
                 const decoded = jwt.verify(data.token, SECRET_KEY);
                 const username = decoded.username;
                 const now = Date.now();
+                broadcastMessage(`${username}: ${data.data}`);
 
                 // Rate limit: Allow only one message per second 
                 if (messageRateLimt.has(username) && now - messageRateLimt.get(username) < 1000) {
@@ -66,20 +74,31 @@ wss.on("connection", function connection(ws) {
 
                 messageRateLimt.set(username, now); //Upate timestamp
 
-                //Broadcast message
-                wss.clients.forEach((client) => {
-                    if (client != ws && client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({ type: "message", data: `${decoded.username}: ${data.data}` }));
-                    }
-                });
             } catch (err) {
                 ws.send(JSON.stringify({ type: "error", message: "Invalid token."}));
             }
         }
     });
     ws.on("close", () => {
-        console.log("Client Disconnected. ");
+        const username = onlineUsers.get(ws); // Retrieve username from map
+
+        if (username) {
+            onlineUsers.delete(ws);
+            console.log("Client Disconnected. ");
+        
+            broadcastMessage(`${username} has left the chat.`);
+        }
     });
+    function broadcastMessage(message, senderUsername = null) {
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({ 
+                    type: "message", 
+                    data: message
+                }));
+            }
+        });
+    }
 });
 
 // Periodically check if the connection is alive
@@ -94,4 +113,4 @@ const interval = setInterval(() => {
     });
 }, 10000); // Runs every 10 seconds
 
-console.log("WebSocket server with authentication, rate limiting, and connection handling running...");
+console.log("WebSocket server is running...");

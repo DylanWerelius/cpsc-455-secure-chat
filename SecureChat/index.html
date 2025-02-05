@@ -46,15 +46,19 @@
 
                 if (data.type === "auth"){
                     token = data.token;
+                    username = document.getElementById("username").value;
                     alert("Logged in Successfully!");
                     document.getElementById("auth-section").classList.add("hidden");
                     document.getElementById("chat-section").classList.remove("hidden");
                 } else if (data.type === "message") {
-                    addMessage(data.data);
+                    if(!document.getElementById(data.data)) {
+                        addMessage(data.data);
+                    }
                 } else if (data.type === "error") {
                     alert(data.message);
                 }
             };
+            
             // register a new user (victoria)
             function register() {
                 const username = document.getElementById("username").value;
