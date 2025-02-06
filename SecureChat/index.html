@@ -15,11 +15,13 @@
 
         <!-- register form & login form -->
         <div id="auth-section" class="p-4 bg-white shadow-md rounded-lg">
-            <h2 class="text-xl font-semibolf mb-2">Register /Login</h2>
+            <h2 class="text-xl font-semibold mb-2">Register / Login</h2>
             <input id="username" type="text" placeholder="Username" class="border px-3 py-2 mb-2 w-full rounded"/>
             <input id="password" type="password" placeholder="Password" class="border px-3 py-2 mb-2 w-full rounded"/>
-            <button onclick="register()" class="bg-green-500 text-white px-4 py-2 rounded w-full mb-2">Register</button>
-            <button onclick="login()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">Login</button>
+            <button onclick="register()" class="bg-green-500 text-white px-4 py-2 rounded w-full mb-2 
+                hover:bg-green-600 transition-colors focus:ring-2 focus:ring-green-300">Register</button>
+            <button onclick="login()" class="bg-blue-500 text-white px-4 py-2 rounded w-full 
+                hover:bg-blue-600 transition-colors focus:ring-2 focus:ring-blue-300">Login</button>
             <p id="auth-error" class="text-red-500 mt-2 text-sm hidden"></p>
         </div>
 
@@ -28,9 +30,12 @@
             <div id="chat-box" class="p-3 overflow-auto">
                 <!-- This is where the messages will go -->
             </div>
+            <!-- This is the div that holds the message and send button -->
             <div class="flex">
+                <!-- This is the message box -->
                 <input id="message" type="text" class="px-3 w-full border-t border-gray-300 outline-none text-gray-700" 
                 placeholder="Type your message..." />
+                <!-- This is the send button -->
                 <button class="px-8 py-3 bg-green-500 text-white hover:bg-green-600 transition-colors" onclick="sendMessage()">Send</button>
             </div>
         </div>
@@ -82,8 +87,6 @@
                 if (!message || !token) return showError("You must be logged in to send a message.");
 
                 ws.send(JSON.stringify({ type: "message", token, data: message }));
-
-                addMessage(`You: ${message}`);
                 document.getElementById("message").value = "";
             }
 
