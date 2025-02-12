@@ -27,6 +27,13 @@
 
         <!-- Chat section(Hidden until logged in)-->
         <div id="chat-section" class="h-screen w-screen flex flex-col justify-between hidden">
+            <!-- This is the section that controls who you are sending messages to -->
+            <div class="p-4 border rounded w-full flex items-center space-x-2 bg-gray-100">
+                <label for="recipient" class="font-semibold">Send To:</label>
+                <select id="recipient" class="p-2 border rounded bg-white">
+                    <option value="all">All</option>
+                </select>
+            </div>
             <div id="chat-box" class="p-3 overflow-auto">
                 <!-- This is where the messages will go -->
             </div>
@@ -51,14 +58,16 @@
 
                 if (data.type === "auth"){
                     token = data.token;
-                    username = document.getElementById("username").value;
-                    alert("Logged in Successfully!");
+                    username = username = data.username;
+                    //alert("Logged in Successfully!");
                     document.getElementById("auth-section").classList.add("hidden");
                     document.getElementById("chat-section").classList.remove("hidden");
                 } else if (data.type === "message") {
-                    if(!document.getElementById(data.data)) {
-                        addMessage(data.data);
-                    }
+                    addMessage(data.data);
+                } else if (data.type === "private_message") {
+                    addMessage(`[Private] ${data.sender}: ${data.message}`);
+                } else if (data.type === "online_users") {
+                    updateOnlineUsersList(data.users);
                 } else if (data.type === "error") {
                     alert(data.message);
                 }
@@ -81,13 +90,20 @@
             }
 
             function sendMessage() {
-                const message = document.getElementById("message").value;
+                const messageInput = document.getElementById("message");
+                const recipient = document.getElementById("recipient").value;
+                const message = messageInput.value.trim();
 
                 // This will catch if the user just clicks the send button with nothing in the text box
-                if (!message || !token) return showError("You must be logged in to send a message.");
-
-                ws.send(JSON.stringify({ type: "message", token, data: message }));
-                document.getElementById("message").value = "";
+                if (message) {
+                    ws.send(JSON.stringify({
+                        type: "message",
+                        token,
+                        recipient,
+                        data: message
+                    }));
+                    document.getElementById("message").value = "";
+                }
             }
 
             document.getElementById("message").addEventListener("keydown", function(event) {
@@ -112,6 +128,23 @@
                 const errorElement = document.getElementById("auth-error");
                 errorElement.textContent = message;
                 errorElement.classList.remove("hidden");
+            }
+
+            function updateOnlineUsersList(users) {
+                const dropdown = document.getElementById("recipient");
+                
+                // Clear the previous options (except "All")
+                dropdown.innerHTML = '<option value="all">All</option>';
+
+                users.forEach((user) => {
+                    // Don't include yourself in the list
+                    if (user !== username) {
+                        const option = document.createElement("option");
+                        option.value = user;
+                        option.textContent = user;
+                        dropdown.appendChild(option);
+                    }
+                });
             }
         </script>
     </body>
