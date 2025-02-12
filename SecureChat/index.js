@@ -102,7 +102,9 @@ wss.on("connection", function connection(ws) {
     });
     ws.on("close", () => {
         // Retrieve username
-        const username = Array.from(onlineUsers.entries()).find(([users, socket]) => socket === ws)?.[0];
+        const entry = Array.from(onlineUsers.entries()).find(([users, socket]) => socket === ws);
+        const username = entry ? entry[0] : null;
+
 
         if (username) {
             onlineUsers.delete(username);

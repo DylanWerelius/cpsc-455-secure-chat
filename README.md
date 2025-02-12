@@ -1,4 +1,5 @@
 # cpsc 455 secure chat
+Created by Dylan Werelius & Victoria Guzman
  
 Instructions for running:
 
