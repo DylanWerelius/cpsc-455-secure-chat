@@ -14,7 +14,7 @@ const messageRateLimt = new Map(); //stores last message timestamp per user
 const onlineUsers = new Map(); //stores active websocket connectins
 
 
-// Make sure this is the same port aas index.html
+// Make sure this is the same port aas index.htmls
 const wss = new WebSocketServer({ port: 3000 })
 
 // checks if connection is alive
