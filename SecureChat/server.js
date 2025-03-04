@@ -15,7 +15,7 @@ const onlineUsers = new Map(); //stores active websocket connectins
 
 
 // Make sure this is the same port aas index.htmls
-const wss = new WebSocketServer({ port: 3000 })
+const wss = new WebSocketServer({ host: '0.0.0.0', port: 80 })
 
 // checks if connection is alive
 function heartbeat() {
