@@ -1,5 +1,5 @@
 // Make sure this is the same port as the one in server.js
-const ws = new WebSocket("ws://192.168.1.160:80");
+const ws = new WebSocket("ws://securechat.ddns.net:80");
 let token = "";
 
 ws.onopen = () => console.log("Connected to the server>");
