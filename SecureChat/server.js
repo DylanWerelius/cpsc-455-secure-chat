@@ -16,8 +16,13 @@ const messageRateLimit = new Map(); //stores last message sent
 const onlineUsers = new Map(); //stores online users
 
 
+<<<<<<< HEAD:SecureChat/index.js
 const MAX_ATTEMPTS = 5;
 const LOCK_TIME = 5 * 60 * 1000; // 5 minutes
+=======
+// Make sure this is the same port aas index.htmls
+const wss = new WebSocketServer({ port: 3000 })
+>>>>>>> 467051018a63df5418d10bee6a1176007d0f7a2a:SecureChat/server.js
 
 // RSA Key Generation for Encryption
 const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 4096 });
@@ -41,6 +46,7 @@ function heartbeat() {
     this.isAlive = true;
 }
 
+<<<<<<< HEAD:SecureChat/index.js
 async function startServer() {
     await initinalizeDatabase(); // Ensure MySQL connects before WebSocket starts
 
@@ -48,6 +54,20 @@ async function startServer() {
 // Set up WebSocket server for LAN communication
     const wss = new WebSocketServer({ host: '0.0.0.0', port: 3000 }); 
     wss.on("connection", function connection(ws) {
+=======
+// This function will help us keep track of what users are currently online
+function updateOnlineUsers() {
+    console.log("Updating online users");
+    const usersArray = Array.from(onlineUsers.keys());
+    wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: "online_users", users: usersArray }));
+        }
+    });
+}
+
+wss.on("connection", function connection(ws) {
+>>>>>>> 467051018a63df5418d10bee6a1176007d0f7a2a:SecureChat/server.js
     console.log("Client Connected");
     ws.isAlive = true;
     ws.on("pong", () => { ws.isAlive = true; }); //Clinet responds to server's ping
@@ -69,6 +89,7 @@ async function startServer() {
                 ws.send(JSON.stringify({ type: "error", message: "Invaild credentials." }));
                 return;
             }
+<<<<<<< HEAD:SecureChat/index.js
             const token = jwt.sign({ username: data.username }, SECRET_KEY, {expiresIn: "1hr"});
             ws.send(JSON.stringify({type: "auth", token}));
 
@@ -76,6 +97,20 @@ async function startServer() {
             onlineUsers.set(ws, data.username);
             broadcastMessage(`${data.username} has joined the chat.`);
             
+=======
+           const valid = await bcrypt.compare(data.password, users.get (data.username));
+           if (!valid) {
+            ws.send(JSON.stringify({ type: "error", message: "Invaild credentials."}));
+            return; 
+           }
+           const token = jwt.sign({ username: data.username }, SECRET_KEY, {expiresIn: "1hr"});
+           ws.send(JSON.stringify({type: "auth", token, username: data.username }));
+
+           //Store user connections
+           onlineUsers.set(data.username, ws);
+           broadcastMessage(`${data.username} has joined the chat.`);
+           updateOnlineUsers();
+>>>>>>> 467051018a63df5418d10bee6a1176007d0f7a2a:SecureChat/server.js
         } else if (data.type === "message") {
             //Authenticate token before allowing messages
             try{
@@ -96,6 +131,12 @@ async function startServer() {
                     throw new Error("Missing recipient");
                 }
                 const now = Date.now();
+<<<<<<< HEAD:SecureChat/index.js
+=======
+
+                // Note: move this and delete when stable
+                // broadcastMessage(`${username}: ${data.data}`);
+>>>>>>> 467051018a63df5418d10bee6a1176007d0f7a2a:SecureChat/server.js
 
                 // Rate limit: Allow only one message per second 
                 if (messageRateLimit.has(username) && now - messageRateLimt.get(username) < 1000) {
@@ -106,6 +147,15 @@ async function startServer() {
                 messageRateLimit.set(username, now); //Upate timestamp
                 await saveMessage(username, data.recipient, data.data);//save to mysql 
                 //broadcastMessage(`${username}: ${data.data}`, ws);
+
+                // Check the name of the recipient
+                console.log(data.recipient);
+                // This is to determine if the message is a DM or general message
+                if (data.recipient != "all") {
+                    sendPrivateMessage(username, data.recipient, data.data);
+                } else {
+                    broadcastMessage(`${username}: ${data.data}`);
+                }
 
             } catch (err) {
                 console.error("invalid token", err.message);
@@ -118,12 +168,16 @@ async function startServer() {
         }
     });
     ws.on("close", () => {
-        const username = onlineUsers.get(ws); // Retrieve username from map
+        // Retrieve username
+        const entry = Array.from(onlineUsers.entries()).find(([users, socket]) => socket === ws);
+        const username = entry ? entry[0] : null;
+
 
         if (username) {
-            onlineUsers.delete(ws);
+            onlineUsers.delete(username);
             console.log("Client Disconnected. ");
             broadcastMessage(`${username} has left the chat.`);
+            updateOnlineUsers();
         }
     });
 });
@@ -134,6 +188,7 @@ async function startServer() {
             }
         }); 
     }
+<<<<<<< HEAD:SecureChat/index.js
     setInterval(() => {
         wss.clients.forEach((ws) => {
             if (!ws.isAlive) {
@@ -144,6 +199,18 @@ async function startServer() {
             ws.ping();// send a ping to check if client is still active
         });
     }, 10000);
+=======
+    function sendPrivateMessage(sender, recipient, message) {
+        const recipientSocket = onlineUsers.get(recipient);
+        if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
+            recipientSocket.send(JSON.stringify({ type: "private_message", sender, message }));
+            ws.send(JSON.stringify({ type: "private_message", sender: "You", message }));
+        } else {
+            ws.send(JSON.stringify({ type: "error", message: `User ${recipient} is not online.` }));
+        }
+    }
+});
+>>>>>>> 467051018a63df5418d10bee6a1176007d0f7a2a:SecureChat/server.js
 
 console.log("WebSocket server is running...");
 
