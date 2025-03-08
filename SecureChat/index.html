@@ -51,7 +51,9 @@
 
                 if (data.type === "auth"){
                     token = data.token;
+                    console.log("token stored: ",token);
                     username = document.getElementById("username").value;
+                    console.log(`Logged in as ${username}`);
                     alert("Logged in Successfully!");
                     document.getElementById("auth-section").classList.add("hidden");
                     document.getElementById("chat-section").classList.remove("hidden");
@@ -86,7 +88,13 @@
                 // This will catch if the user just clicks the send button with nothing in the text box
                 if (!message || !token) return showError("You must be logged in to send a message.");
 
-                ws.send(JSON.stringify({ type: "message", token, data: message }));
+                const recipient = "Bob"; //replace with real recipient logic 
+                ws.send(JSON.stringify({ 
+                    type: "message", 
+                    token: token, 
+                    recipient: recipient, 
+                    data: message }));
+                addMessage(`You: ${message}`);
                 document.getElementById("message").value = "";
             }
 
