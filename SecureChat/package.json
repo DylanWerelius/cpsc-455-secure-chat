@@ -2,8 +2,10 @@
   "name": "securechat",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "Client\\main.js",
   "scripts": {
+    "start-server": "node server.js",
+    "start-app": "electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "module",
@@ -17,5 +19,9 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^35.0.2",
+    "electron-packager": "^17.1.2"
   }
 }
