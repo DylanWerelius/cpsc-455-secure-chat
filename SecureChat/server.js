@@ -21,8 +21,12 @@ const MAX_ATTEMPTS = 5;
 const LOCK_TIME = 5 * 60 * 1000; // 5 minutes
 =======
 // Make sure this is the same port aas index.htmls
+<<<<<<< HEAD
 const wss = new WebSocketServer({ port: 3000 })
 >>>>>>> 467051018a63df5418d10bee6a1176007d0f7a2a:SecureChat/server.js
+=======
+const wss = new WebSocketServer({ host: '0.0.0.0', port: 80 })
+>>>>>>> 9b2d1d866adbc2d371e31c5f01a28a110d3a5a7a
 
 // RSA Key Generation for Encryption
 const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 4096 });
