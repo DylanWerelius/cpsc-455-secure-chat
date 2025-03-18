@@ -9,8 +9,7 @@ Instructions for running:
    c. type "npm install electron-packager --save-dev"
 3. create a file called .env at the in the SecureChat folder
 4. open the .env file and type "SECRET_KEY=3v3rg@rd3n" (without the quotes obviously) and save it
-5. start the server by typing "node server.js" (DONT DO THIS, I ALREADY HAVE IT RUNNING ON MY RASPBERRY PI)
-6. to get a distribution (.exe file) type "npx electron-packager . SecureChat --platform=win32 --arch=x64 --out=dist"
+5. to get a distribution (.exe file) type "npx electron-packager . SecureChat --platform=win32 --arch=x64 --out=distribution"
 
 Dev Testing:
 - To make sure the server is running, ssh to the pi and type "netstat -tulnp | grep 80" in the console.
