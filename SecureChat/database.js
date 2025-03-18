@@ -7,6 +7,7 @@ dotenv.config();
 
 let db;
 
+console.log(`🛠️ Attempting to connect to MySQL at ${process.env.DB_HOST}:${process.env.DB_PORT} using database ${process.env.DB_NAME}`);
 //create database connection 
 export async function initinalizeDatabase() {
     if (!db) {
@@ -49,6 +50,7 @@ export async function initinalizeDatabase() {
 
 // Function to get a database connection
 export async function getDatabase() {
+    console.log(`Saving data to MySQL Database: ${process.env.DB_NAME} at ${process.env.DB_HOST}`);
     if (!db)await initializeDatabase();
     return db;
 }
