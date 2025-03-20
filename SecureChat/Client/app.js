@@ -55,6 +55,37 @@ function sendMessage() {
         document.getElementById("message").value = "";
     }
 }
+function toggleEmojiPicker() {
+    const picker = document.getElementById("emojiPicker");
+    picker.style.display = picker.style.display === "none" ? "block" : "none";
+}
+
+function addEmoji(emoji) {
+    const messageInput = document.getElementById("chatMessage");
+    messageInput.value += emoji; // Insert emoji into input field
+    toggleEmojiPicker(); // Hide picker after selecting an emoji
+}
+
+
+document.querySelectorAll(".emoji").forEach(emoji => {
+    emoji.addEventListener("click", function () {
+        const messageInput = document.getElementById("chatMessage");
+        messageInput.value += this.innerText; // Insert emoji into input field
+        document.getElementById("emojiPicker").style.display = "none"; // Hide picker after selection
+    });
+});
+function formatMessage(text) {
+    text = text.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+    text = text.replace(/\*(.*?)\*/g, "<i>$1</i>");
+    text = text.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>');
+    return text;
+}
+
+socket.onmessage = function (event) {
+    const data = JSON.parse(event.data);
+    const formattedMessage = formatMessage(data.message);
+    document.getElementById("chatBox").innerHTML += `<p>${formattedMessage}</p>`;
+};
 
 document.getElementById("message").addEventListener("keydown", function(event) {
     if (event.key === "Enter") {

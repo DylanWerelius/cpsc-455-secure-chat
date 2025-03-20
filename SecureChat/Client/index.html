@@ -43,6 +43,19 @@
                 <!-- This is the message box -->
                 <input id="message" type="text" class="px-3 w-full border-t border-gray-300 outline-none text-gray-700" 
                 placeholder="Type your message..." />
+                <button onclick="toggleEmojiPicker()">😀</button>
+                <div id="emojiPicker" style="display: none; border: 1px solid #ccc; padding: 5px;">
+                    <span class="emoji" onclick="addEmoji('🥳')">🥳</span> 
+                    <span class="emoji" onclick="addEmoji('😂')">😂</span> 
+                    <span class="emoji" onclick="addEmoji('😊')">😊</span>
+                    <span class="emoji" onclick="addEmoji('🔥')">🔥</span> 
+                    <span class="emoji" onclick="addEmoji('🎉')">🎉</span> 
+                    <span class="emoji" onclick="addEmoji('💯')">💯</span>
+                    <span class="emoji" onclick="addEmoji('👍')">👍</span> 
+                    <span class="emoji" onclick="addEmoji('❤️')">❤️</span> 
+                    <span class="emoji" onclick="addEmoji('😎')">😎</span>
+                </div>
+
                 <!-- This is the send button -->
                 <button class="px-8 py-3 bg-green-500 text-white hover:bg-green-600 transition-colors" onclick="sendMessage()">Send</button>
             </div>

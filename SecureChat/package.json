@@ -2,7 +2,7 @@
   "name": "securechat",
   "version": "1.0.0",
   "description": "",
-  "main": "Client\\main.js",
+  "main": "Client/main.js",
   "scripts": {
     "start-server": "node server.js",
     "start-app": "electron .",
@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "electron": "^35.0.2",
-    "electron-packager": "^17.1.2"
+    "electron-packager": "^17.1.2",
+    "rcedit": "^4.0.1"
   }
 }
