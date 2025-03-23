@@ -3,6 +3,20 @@ const ws = new WebSocket("ws://securechat.ddns.net:80");
 window.socket = ws;
 let token = "";
 
+let rsaKeyPair;
+(async () => {
+    rsaKeyPair = await window.crypto.subtle.generateKey(
+        {
+            name: "RSA-OAEP",
+            modulusLength: 4096,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256"
+        },
+        true,
+        ["encrypt", "decrypt"]
+    );
+});
+
 ws.onopen = () => console.log("Connected to the server");
 
 // This function is used to detect messages being received
@@ -172,20 +186,6 @@ function updateOnlineUsersList(users) {
         }
     });
 }
-
-let rsaKeyPair;
-(async () => {
-    rsaKeyPair = await window.crypto.subtle.generateKey(
-        {
-            name: "RSA-OAEP",
-            modulusLength: 4096,
-            publicExponent: new Uint8Array([1, 0, 1]),
-            hash: "SHA-256"
-        },
-        true,
-        ["encrypt", "decrypt"]
-    );
-});
 
 const fileInput = document.getElementById("fileInput");
 fileInput.addEventListener("change", async (e) => {
