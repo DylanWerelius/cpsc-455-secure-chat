@@ -38,27 +38,119 @@
             <div id="chat-box" class="p-3 overflow-auto">
                 <!-- This is where the messages will go -->
             </div>
+            <!-- File Upload UI -->
+            <div class="p-2 bg-white border-t flex items-center space-x-4">
+                <label for="fileInput" class="cursor-pointer text-blue-600 hover:underline">📎 Upload File</label>
+                <input type="file" id="fileInput" class="hidden" />
+            </div>
             <!-- This is the div that holds the message and send button -->
             <div class="flex">
                 <!-- This is the message box -->
                 <input id="message" type="text" class="px-3 w-full border-t border-gray-300 outline-none text-gray-700" 
                 placeholder="Type your message..." />
                 <button onclick="toggleEmojiPicker()">😀</button>
-                <div id="emojiPicker" style="display: none; border: 1px solid #ccc; padding: 5px;">
-                    <span class="emoji" onclick="addEmoji('🥳')">🥳</span> 
-                    <span class="emoji" onclick="addEmoji('😂')">😂</span> 
-                    <span class="emoji" onclick="addEmoji('😊')">😊</span>
-                    <span class="emoji" onclick="addEmoji('🔥')">🔥</span> 
-                    <span class="emoji" onclick="addEmoji('🎉')">🎉</span> 
-                    <span class="emoji" onclick="addEmoji('💯')">💯</span>
-                    <span class="emoji" onclick="addEmoji('👍')">👍</span> 
-                    <span class="emoji" onclick="addEmoji('❤️')">❤️</span> 
-                    <span class="emoji" onclick="addEmoji('😎')">😎</span>
-                </div>
-
+                <div id="emojiPicker" class="flex flex-wrap gap-2 p-2">
+                    <button onclick="addEmoji('😀')">😀</button>
+                    <button onclick="addEmoji('😂')">😂</button>
+                    <button onclick="addEmoji('😍')">😍</button>
+                    <button onclick="addEmoji('🔥')">🔥</button>
+                    <button onclick="addEmoji('🎉')">🎉</button>
+                    <button onclick="addEmoji('👍')">👍</button>
+                  </div>                                   
+                  
                 <!-- This is the send button -->
                 <button class="px-8 py-3 bg-green-500 text-white hover:bg-green-600 transition-colors" onclick="sendMessage()">Send</button>
             </div>
         </div>
+        <script>
+            let rsaKeyPair;
+
+            (async () => {
+            rsaKeyPair = await window.crypto.subtle.generateKey(
+                {
+                name: "RSA-OAEP",
+                modulusLength: 4096,
+                publicExponent: new Uint8Array([1, 0, 1]),
+                hash: "SHA-256"
+                },
+                true,
+                ["encrypt", "decrypt"]
+            );
+            })();
+
+            const fileInput = document.getElementById("fileInput");
+            
+            fileInput.addEventListener("change", async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+            
+              const arrayBuffer = await file.arrayBuffer();
+            
+              const aesKey = await crypto.subtle.generateKey(
+                { name: "AES-GCM", length: 256 },
+                true,
+                ["encrypt"]
+              );
+            
+              const rawKey = await crypto.subtle.exportKey("raw", aesKey);
+              const iv = crypto.getRandomValues(new Uint8Array(12));
+            
+              const encrypted = await crypto.subtle.encrypt(
+                { name: "AES-GCM", iv },
+                aesKey,
+                arrayBuffer
+              );
+            
+              const payload = {
+                type: "file",
+                filename: file.name,
+                mime: file.type,
+                encrypted: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
+                iv: Array.from(iv),
+                aesKey: Array.from(new Uint8Array(rawKey)), // Placeholder, to be encrypted via RSA later
+                recipient: document.getElementById("recipient").value
+              };
+            
+              ws.send(JSON.stringify(payload));
+            });
+            ws.addEventListener("message", async (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === "file") {
+                  const encryptedAESKey = new Uint8Array(data.aesKey);
+                  const iv = new Uint8Array(data.iv);
+                  const encryptedData = Uint8Array.from(atob(data.encrypted), c => c.charCodeAt(0));
+              
+                  const rawAESKey = await crypto.subtle.decrypt(
+                    { name: "RSA-OAEP" },
+                    rsaKeyPair.privateKey,
+                    encryptedAESKey
+                  );
+              
+                  const aesKey = await crypto.subtle.importKey(
+                    "raw",
+                    rawAESKey,
+                    { name: "AES-GCM" },
+                    false,
+                    ["decrypt"]
+                  );
+              
+                  const decrypted = await crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv },
+                    aesKey,
+                    encryptedData
+                  );
+              
+                  const blob = new Blob([decrypted], { type: data.mime });
+                  const link = document.createElement("a");
+                  link.href = URL.createObjectURL(blob);
+                  link.download = data.filename;
+                  link.textContent = `📎 Download: ${data.filename}`;
+                  link.classList.add("block", "text-blue-500", "hover:underline", "mt-2");
+              
+                  document.getElementById("chatBox").appendChild(link);
+                }
+              });
+              </script>
+            
     </body>
 </html>

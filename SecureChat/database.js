@@ -1,88 +1,77 @@
-// created by Victoria Guzman march 2025
-
-import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
-
-dotenv.config();
+//Created by Victoria Guzman
+// database.js (SQLite version)
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
+import path from 'path';
 
 let db;
 
-console.log(`🛠️ Attempting to connect to MySQL at ${process.env.DB_HOST}:${process.env.DB_PORT} using database ${process.env.DB_NAME}`);
-
-export async function initializeDatabase() {  // Fix: Correct function name
-    if (!db) {
-        try {
-            db = await mysql.createConnection({
-                host: process.env.DB_HOST,
-                user: process.env.DB_USER,
-                password: process.env.DB_PASSWORD || "",
-                database: process.env.DB_NAME,
-                port: process.env.DB_PORT
-            });
-
-            console.log("✅ Connected to MySQL Database!");
-
-            // Create tables if they don't exist
-            await db.query(`
-                CREATE TABLE IF NOT EXISTS users (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    username VARCHAR(50) UNIQUE NOT NULL,
-                    password VARCHAR(255) NOT NULL
-                );
-            `);
-
-            await db.query(`
-                CREATE TABLE IF NOT EXISTS messages (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    sender VARCHAR(50) NOT NULL,
-                    recipient VARCHAR(50) NOT NULL,
-                    message TEXT NOT NULL,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-            `);
-        } catch (error) {
-            console.error('❌ Error connecting to MySQL database:', error);
-            process.exit(1);
-        }
-    }
-    return db;
-}
-
-// Ensure a database connection exists
 export async function getDatabase() {
-    if (!db) await initializeDatabase();
-    return db;
+  if (!db) {
+    db = await open({
+      filename: path.join(process.cwd(), 'logs/chat.sqlite'),
+      driver: sqlite3.Database
+    });
+
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender TEXT NOT NULL,
+        recipient TEXT NOT NULL,
+        message TEXT NOT NULL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+  }
+  return db;
 }
 
-// Register a user
-export async function registerUser(username, hashedPassword) {
-    try {
-        await db.query(`INSERT INTO users (username, password) VALUES (?, ?)`, [username, hashedPassword]);
-        return true;
-    } catch (error) {
-        return false; // User already exists
-    }
-}
-
-// Authenticate user
-export async function authenticateUser(username) {
-    const [rows] = await db.query(`SELECT * FROM users WHERE username = ?`, [username]);
-    return rows[0]; // Return user data
-}
-
-// Store messages
 export async function saveMessage(sender, recipient, message) {
-    const db = await getDatabase();
-    await db.query(`INSERT INTO messages (sender, recipient, message) VALUES (?, ?, ?)`, [sender, recipient, message]);
+  const db = await getDatabase();
+  await db.run(
+    `INSERT INTO messages (sender, recipient, message) VALUES (?, ?, ?)`,
+    sender,
+    recipient,
+    message
+  );
 }
 
-// Retrieve chat history
-export async function getChatHistory(sender, recipient) {
-    const [rows] = await db.query(
-        `SELECT sender, message, timestamp FROM messages 
-         WHERE (sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?) 
-         ORDER BY timestamp ASC`,
-        [sender, recipient, recipient, sender]
-    );
-    return rows;
+export async function getMessagesBetween(sender, recipient) {
+  const db = await getDatabase();
+  return db.all(
+    `SELECT * FROM messages WHERE (sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?) ORDER BY timestamp ASC`,
+    sender, recipient, recipient, sender
+  );
 }
+
+export async function getRecentMessages(limit = 100) {
+  const db = await getDatabase();
+  return db.all(
+    `SELECT * FROM messages ORDER BY timestamp DESC LIMIT ?`,
+    limit
+  );
+}
+
+export async function createUser(username, hashedPassword) {
+  const db = await getDatabase();
+  await db.run(
+    `INSERT INTO users (username, password) VALUES (?, ?)`,
+    username,
+    hashedPassword
+  );
+}
+
+export async function findUserByUsername(username) {
+  const db = await getDatabase();
+  return db.get(
+    `SELECT * FROM users WHERE username = ?`,
+    username
+  );
+} 

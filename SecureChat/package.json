@@ -13,7 +13,6 @@
   "author": "Dylan Werelius & Victoria Guzman",
   "license": "ISC",
   "dependencies": {
-    "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -23,6 +22,7 @@
   "devDependencies": {
     "electron": "^35.0.2",
     "electron-packager": "^17.1.2",
+    "electron-rebuild": "^3.2.9",
     "rcedit": "^4.0.1"
   }
 }
