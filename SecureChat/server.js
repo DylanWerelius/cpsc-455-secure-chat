@@ -14,7 +14,7 @@ import { saveMessage, createUser, findUserByUsername } from "./database.js";
 dotenv.config();
 
 const SECRET_KEY = process.env.SECRET_KEY;
-const messageRateLimt = new Map();
+const messageRateLimit = new Map();
 const onlineUsers = new Map();
 const loginAttempts = new Map();
 
@@ -111,12 +111,12 @@ wss.on("connection", function connection(ws) {
                 const username = decoded.username;
                 const now = Date.now();
 
-                if (messageRateLimt.has(username) && now - messageRateLimt.get(username) < 1000) {
+                if (messageRateLimit.has(username) && now - messageRateLimit.get(username) < 1000) {
                     ws.send(JSON.stringify({ type: "error", message: "You're sending messages too fast! Try again in a second." }));
                     return;
                 }
 
-                messageRateLimt.set(username, now);
+                messageRateLimit.set(username, now);
 
                 if (data.recipient !== "all") {
                     sendPrivateMessage(username, data.recipient, data.data);
@@ -127,6 +127,21 @@ wss.on("connection", function connection(ws) {
                 await saveMessage(username, data.recipient, data.data);
             } catch (err) {
                 ws.send(JSON.stringify({ type: "error", message: "Invalid token." }));
+            }
+        } else if (data.type === "file") {
+            try {
+                const decoded = jwt.verify(data.token, SECRET_KEY);
+                const username = decoded.username;
+
+                if (data.recipient && data.recipient !== "all") {
+                    sendPrivateFile(username, data.recipient, data);
+                } else {
+                    broadcastFile(username, data);
+                }
+
+                await saveMessage(username, data.recipient, `[File] ${data.filename}`);
+            } catch (err) {
+                ws.send(JSON.stringify({ type: "error", message: "Invalid token" }));
             }
         }
     });
@@ -159,6 +174,54 @@ wss.on("connection", function connection(ws) {
         } else {
             ws.send(JSON.stringify({ type: "error", message: `User ${recipient} is not online.` }));
             logMessageToFile(sender, `${recipient} (offline)`, message);
+        }
+    }
+
+    // This is like the broadcastMessage function but for files
+    function broadcastFile(sender, fileData) {
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                    type: "file",
+                    sender,
+                    filename: fileData.filename,
+                    mime: fileData.mime,
+                    encrypted: fileData.encrypted,
+                    iv: fileData.iv,
+                    aesKey: fileData.aesKey
+                }));
+            }
+        });
+        logMessageToFile(sender, "All", `[File] ${fileData.filename}`);
+    }
+
+    function sendPrivateFile(sender, recipient, fileData) {
+        const recipientSocket = onlineUsers.get(recipient);
+        if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
+            recipientSocket.send(JSON.stringify({
+                type: "file",
+                sender,
+                filename: fileData.filename,
+                mime: fileData.mime,
+                encrypted: fileData.encrypted,
+                iv: fileData.iv,
+                aesKey: fileData.aesKey
+            }));
+
+            // Send a copy to the sender's client to show the file was sent.
+            ws.send(JSON.stringify({
+                type: "file",
+                sender: "You",
+                filename: fileData.filename,
+                mime: fileData.mime,
+                encrypted: fileData.encrypted,
+                iv: fileData.iv,
+                aesKey: fileData.aesKey
+            }));
+            logMessageToFile(sender, recipient, `[File] ${fileData.filename}`);
+        } else {
+            ws.send(JSON.stringify({ type: "error", message: `User ${recipient} is not online.` }));
+            logMessageToFile(sender, `${recipient} (offline)`, `[File] ${fileData.filename}`);
         }
     }
 });
