@@ -1,8 +1,5 @@
 // Make sure this is the same port as the one in server.js
-const ws = new WebSocket("ws://securechat.ddns.net:80");
-window.socket = ws;
 let token = "";
-
 let rsaKeyPair;
 (async () => {
     rsaKeyPair = await window.crypto.subtle.generateKey(
@@ -15,64 +12,71 @@ let rsaKeyPair;
         true,
         ["encrypt", "decrypt"]
     );
-});
 
-ws.onopen = () => console.log("Connected to the server");
 
-// This function is used to detect messages being received
-ws.onmessage = async (event) => {
-    const data = JSON.parse(event.data);
+    console.log("RSA key Generated successfully");
+    //const ws = new WebSocket("ws://securechat.ddns.net:80");
+    ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
+    window.socket = ws;
 
-    if (data.type === "auth"){
-        token = data.token;
-        username = username = data.username;
-        //alert("Logged in Successfully!");
-        document.getElementById("auth-section").classList.add("hidden");
-        document.getElementById("chat-section").classList.remove("hidden");
-    } else if (data.type === "message") {
-        console.log("Message read from correct function");
-        addMessage(data.message);
-    } else if (data.type === "file") {
-        console.log("Receiving a file");
-        const encryptedAESKey = new Uint8Array(data.aesKey);
-        const iv = new Uint8Array(data.iv);
-        const encryptedData = Uint8Array.from(atob(data.encrypted), c => c.charCodeAt(0));
-        
-        const rawAESKey = await crypto.subtle.decrypt(
-            { name: "RSA-OAEP" },
-            rsaKeyPair.privateKey,
-            encryptedAESKey
-        );
-              
-        const aesKey = await crypto.subtle.importKey(
-            "raw",
-            rawAESKey,
-            { name: "AES-GCM" },
-            false,
-            ["decrypt"]
-        );
-              
-        const decrypted = await crypto.subtle.decrypt(
-            { name: "AES-GCM", iv },
-            aesKey,
-            encryptedData
-        );
-              
-        const blob = new Blob([decrypted], { type: data.mime });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = data.filename;
-        link.textContent = `📎 Download: ${data.filename}`;
-        link.classList.add("block", "text-blue-500", "hover:underline", "mt-2");
-        document.getElementById("chat-box").appendChild(link);
-    } else if (data.type === "private_message") {
-        addMessage(`[Private] ${data.sender}: ${data.message}`);
-    } else if (data.type === "online_users") {
-        updateOnlineUsersList(data.users);
-    } else if (data.type === "error") {
-        alert(data.message);
-    }
-};
+    ws.onopen = () => console.log("Connected to the server");
+
+
+    // This function is used to detect messages being received
+    ws.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "auth") {
+            token = data.token;
+            username = data.username;
+            document.getElementById("auth-section").classList.add("hidden");
+            document.getElementById("chat-section").classList.remove("hidden");
+
+        } else if (data.type === "message") {
+            console.log("Message read from correct function");
+            addMessage(data.message);
+
+        } else if (data.type === "file") {
+            console.log("Receiving a file");
+            const encryptedAESKey = new Uint8Array(data.aesKey);
+            const iv = new Uint8Array(data.iv);
+            const encryptedData = Uint8Array.from(atob(data.encrypted), c => c.charCodeAt(0));
+            const rawAESKey = await crypto.subtle.decrypt(
+                { name: "RSA-OAEP" },
+                rsaKeyPair.privateKey,
+                encryptedAESKey
+            );
+
+            const aesKey = await crypto.subtle.importKey(
+                "raw",
+                rawAESKey,
+                { name: "AES-GCM" },
+                false,
+                ["decrypt"]
+            );
+
+            const decrypted = await crypto.subtle.decrypt(
+                { name: "AES-GCM", iv },
+                aesKey,
+                encryptedData
+            );
+
+            const blob = new Blob([decrypted], { type: data.mime });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = data.filename;
+            link.textContent = `📎 Download: ${data.filename}`;
+            link.classList.add("block", "text-blue-500", "hover:underline", "mt-2");
+            document.getElementById("chat-box").appendChild(link);
+        } else if (data.type === "private_message") {
+            addMessage(`[Private] ${data.sender}: ${data.message}`);
+        } else if (data.type === "online_users") {
+            updateOnlineUsersList(data.users);
+        } else if (data.type === "error") {
+            alert(data.message);
+        }
+    };
+})();
 
 // register a new user (victoria)
 function register() {
@@ -106,12 +110,12 @@ function sendMessage() {
         document.getElementById("message").value = "";
     }
 }
-
+// select emoji 
 function toggleEmojiPicker() {
     const picker = document.getElementById("emojiPicker");
     picker.style.display = picker.style.display === "none" ? "flex" : "none";
   }
-  
+// add emoji to text feild
 function addEmoji(emoji) {
     const input = document.getElementById("message");
     if (input) {
@@ -205,20 +209,27 @@ fileInput.addEventListener("change", async (e) => {
     const rawKey = await crypto.subtle.exportKey("raw", aesKey);
     const iv = crypto.getRandomValues(new Uint8Array(12));
     
-    const encrypted = await crypto.subtle.encrypt(
+    const encryptedFile = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv },
         aesKey,
         arrayBuffer
     );
+    
+    const encryptedAESKey = await crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        rsaKeyPair.publicKey,
+        rawKey
+    );
+    
     
     const payload = {
         type: "file",
         token,
         filename: file.name,
         mime: file.type,
-        encrypted: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
+        encrypted: btoa(String.fromCharCode(...new Uint8Array(encryptedFile))),
         iv: Array.from(iv),
-        aesKey: Array.from(new Uint8Array(rawKey)), // Placeholder, to be encrypted via RSA later
+        aesKey: Array.from(new Uint8Array(encryptedAESKey)), // Placeholder, to be encrypted via RSA later
         recipient: document.getElementById("recipient").value
     };
     

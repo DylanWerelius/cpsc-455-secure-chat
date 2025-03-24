@@ -3,13 +3,23 @@
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import path from 'path';
+import fs from 'fs';
+
+const dbFolder = path.join(process.cwd(), 'logs');
+if (!fs.existsSync(dbFolder)) fs.mkdirSync(dbFolder, { recursive: true });
 
 let db;
 
 export async function getDatabase() {
   if (!db) {
+    const dbFolder = path.join(process.cwd(), 'logs');
+    if (!fs.existsSync(dbFolder)) fs.mkdirSync(dbFolder, { recursive: true });
+
+    const dbPath = path.join(dbFolder, 'chat.sqlite');
+    console.log("SQLite DB will be saved to:", dbPath);
+
     db = await open({
-      filename: path.join(process.cwd(), 'logs/chat.sqlite'),
+      filename: dbPath,
       driver: sqlite3.Database
     });
 

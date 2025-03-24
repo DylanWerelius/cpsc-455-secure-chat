@@ -9,10 +9,9 @@ import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
-import { saveMessage, createUser, findUserByUsername } from "./database.js";
+import { saveMessage, createUser, findUserByUsername ,getDatabase} from "./database.js";
 
 dotenv.config();
-
 const SECRET_KEY = process.env.SECRET_KEY;
 const messageRateLimit = new Map();
 const onlineUsers = new Map();
@@ -24,6 +23,12 @@ const securityLogPath = path.join("logs", "security.txt");
 const logDir = path.join(process.cwd(), "logs");
 if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 
+(async () => {
+    await getDatabase();
+    console.log("SQLite initialized");
+  })();
+  
+
 function logSecurityEvent(username, reason) {
   const logLine = `${new Date().toISOString()} - ${username}: ${reason}\n`;
   fs.appendFile(securityLogPath, logLine, (err) => {
@@ -31,7 +36,9 @@ function logSecurityEvent(username, reason) {
   });
 }
 
-const wss = new WebSocketServer({ host: '0.0.0.0', port: 80 });
+const wss = new WebSocketServer({ host: '0.0.0.0', port: 3000 });
+
+//const wss = new WebSocketServer({ host: '0.0.0.0', port: 80 });
 
 function heartbeat() {
     this.isAlive = true;
