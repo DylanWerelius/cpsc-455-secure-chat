@@ -36,9 +36,9 @@ function logSecurityEvent(username, reason) {
   });
 }
 
-const wss = new WebSocketServer({ host: '0.0.0.0', port: 3000 });
+//const wss = new WebSocketServer({ host: '0.0.0.0', port: 3000 });//lochost testing
 
-//const wss = new WebSocketServer({ host: '0.0.0.0', port: 80 });
+const wss = new WebSocketServer({ host: '0.0.0.0', port: 80 });
 
 function heartbeat() {
     this.isAlive = true;

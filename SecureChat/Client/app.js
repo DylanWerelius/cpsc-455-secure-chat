@@ -15,8 +15,8 @@ let rsaKeyPair;
 
 
     console.log("RSA key Generated successfully");
-    //const ws = new WebSocket("ws://securechat.ddns.net:80");
-    ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
+    const ws = new WebSocket("ws://securechat.ddns.net:80");
+    //ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
     window.socket = ws;
 
     ws.onopen = () => console.log("Connected to the server");
@@ -83,7 +83,7 @@ function register() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     if (!username || !password) return showError("Please enter a username and password.");
-    ws.send(JSON.stringify({ type: "register", username, password }));
+    socket.send(JSON.stringify({ type: "register", username, password }));
 }
 
 // user authentication (login) (victoria)
@@ -91,7 +91,7 @@ function login() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     if (!username || !password) return showError("Please enter a username and password.");
-    ws.send(JSON.stringify({ type: "login", username, password }));
+    socket.send(JSON.stringify({ type: "login", username, password }));
 }
 
 function sendMessage() {
@@ -101,7 +101,7 @@ function sendMessage() {
 
     // This is where the message gets sent
     if (message) {
-        ws.send(JSON.stringify({
+        socket.send(JSON.stringify({
             type: "message",
             token,
             recipient,
@@ -142,12 +142,12 @@ function formatMessage(text) {
 }
 
 // Don't delete
-// WebSocket.onmessage = function (event) {
-//     console.log("Function call from line 92 WebSocket.onmessage");
-//     const data = JSON.parse(event.data);
-//     const formattedMessage = formatMessage(data.data || data.message || "");
-//     document.getElementById("chatBox").innerHTML += `<p>${formattedMessage}</p>`;
-// };
+ WebSocket.onmessage = function (event) {
+     console.log("Function call from line 92 WebSocket.onmessage");
+    const data = JSON.parse(event.data);
+    const formattedMessage = formatMessage(data.data || data.message || "");
+     document.getElementById("chatBox").innerHTML += `<p>${formattedMessage}</p>`;
+ };
 
 
 document.getElementById("message").addEventListener("keydown", function(event) {
@@ -234,7 +234,7 @@ fileInput.addEventListener("change", async (e) => {
     };
     
     console.log("Sending File...");
-    ws.send(JSON.stringify(payload));
+    socket.send(JSON.stringify(payload));
     console.log("File Sent");
 });
 
