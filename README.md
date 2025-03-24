@@ -4,7 +4,7 @@ Created by Dylan Werelius & Victoria Guzman
 Instructions for running:
 
 1. navigate to the SecureChat directory with "cd SecureChat"
-2. a. type "npm i ws bcryptjs jsonwebtoken dotenv sqlite3 sqlite"
+2. a. type "npm i ws bcryptjs jsonwebtoken dotenv sqlite3 sqlite express"
    b. type "npm install electron --save-dev"
    c. type "npm install electron-packager --save-dev"
 3. create a file called .env at the in the SecureChat folder
