@@ -136,7 +136,7 @@
   {
     display: flex;
     flex-direction: row;
-    height: calc(100vh - 8rem);
+    height: calc(100vh - 10rem);
     gap: 1rem;
     margin: 1rem 0;
   }
@@ -180,7 +180,8 @@
   
   /* Chat Log */
   #chat-log {
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 1rem;
     overflow-y: auto;
     background: #ffffff;

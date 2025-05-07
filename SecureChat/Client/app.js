@@ -145,7 +145,7 @@ let publicKeys = {};
         // decide the recipients of the file
         let toSend = [];
         if (document.getElementById("recipient").value === "all") {
-            toSend = Object.keys(publicKeys).filter(u => u !== username);
+            toSend = onlineUsers.filter(u => u !== username);
         } else {
             toSend = [document.getElementById("recipient").value]
         }
@@ -278,7 +278,7 @@ function showError(message) {
 
 function handleUserUpdate(serverUsers) {
     // remove yourself
-    const current = serverUsers.filter(u => u !== username);
+    const current = serverUsers;
 
     // Who is offline
     const wentOffline = onlineUsers.filter(u => !current.includes(u));
@@ -313,7 +313,7 @@ function renderUserLists() {
   
     onlineUsers.forEach(u => {
       const li = document.createElement("li");
-      li.textContent = u;
+      li.textContent = u === username ?  u + " (You)" : u;
       onlineList.appendChild(li);
       
       if (u !== username)
