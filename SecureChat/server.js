@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
+import https from "https";
 import { saveMessage, createUser, findUserByUsername, getDatabase, getAllUsers } from "./database.js";
 
 dotenv.config();
@@ -39,20 +40,20 @@ function logSecurityEvent(username, reason) {
 
 //const wss = new WebSocketServer({ host: '0.0.0.0', port: 3000 });//lochost testing
 
-const wss = new WebSocketServer({ host: '0.0.0.0', port: 80 });
+// TLS + WSS on port 443
+const server = https.createServer({
+    cert: fs.readFileSync("/etc/letsencrypt/live/securechat.ddns.net/fullchain.pem"),
+    key: fs.readFileSync("/etc/letsencrypt/live/securechat.ddns.net/privkey.pem"),
+});
+const wss = new WebSocketServer({ server });
 
 function heartbeat() {
     this.isAlive = true;
 }
 
-function updateOnlineUsers() {
-    const usersArray = Array.from(onlineUsers.keys());
-    wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: "online_users", users: usersArray }));
-        }
-    });
-}
+server.listen(80, () => {
+    console.log("SecureChat is listening on https://securechat.ddns.net and wss://securechat.ddns.net");
+});
 
 async function updateUserLists() {
     const registered = await getAllUsers();
