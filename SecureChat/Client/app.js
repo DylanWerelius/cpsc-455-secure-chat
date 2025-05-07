@@ -3,6 +3,7 @@ let token = "";
 let rsaKeyPair;
 let onlineUsers = [];
 let offlineUsers = [];
+let publicKeys = {};
 
 (async () => {
     rsaKeyPair = await window.crypto.subtle.generateKey(
@@ -16,14 +17,12 @@ let offlineUsers = [];
         ["encrypt", "decrypt"]
     );
 
-
     console.log("RSA key Generated successfully");
     const ws = new WebSocket("ws://securechat.ddns.net:80");
     //ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
     window.socket = ws;
 
     ws.onopen = () => console.log("Connected to the server");
-
 
     // This function is used to detect messages being received
     ws.onmessage = async (event) => {
@@ -35,16 +34,26 @@ let offlineUsers = [];
             document.getElementById("auth-section").classList.add("hidden");
             document.getElementById("chat-page").classList.remove("hidden");
             document.getElementById("chat-page").classList.add("chat-section");
-            socket.send(JSON.stringify({ type: "get_online_users", token }));
+
+            // send your public key to the server so it can relay to everyone else
+            const spki = await crypto.subtle.exportKey("spki", rsaKeyPair.publicKey);
+            socket.send(JSON.stringify({
+                type: "public_key",
+                username,
+                key: Array.from(new Uint8Array(spki))
+            }));
         } else if (data.type === "message") {
             console.log("Message read from correct function");
             addMessage(data.message);
 
         } else if (data.type === "file") {
+            if (data.sender === "You") return;
+            
             console.log("Receiving a file");
             const encryptedAESKey = new Uint8Array(data.aesKey);
             const iv = new Uint8Array(data.iv);
             const encryptedData = Uint8Array.from(atob(data.encrypted), c => c.charCodeAt(0));
+            
             const rawAESKey = await crypto.subtle.decrypt(
                 { name: "RSA-OAEP" },
                 rsaKeyPair.privateKey,
@@ -76,7 +85,6 @@ let offlineUsers = [];
             addMessage(`[Private] ${data.sender}: ${data.message}`);
         } else if (data.type === "online_users") {
             handleUserUpdate(data.users);
-            updateOnlineUsersList(data.users);
         } else if (data.type === "error") {
             alert(data.message);
         } else if (data.type === "offline_users") {
@@ -86,9 +94,99 @@ let offlineUsers = [];
                 const li = document.createElement("li");
                 li.textContent = u;
                 offUL.appendChild(li);
+
+                if (publicKeys[u])
+                {
+                    delete publicKeys[u];
+                }
             });
+        } else if (data.type === "public_key") {
+            console.log("New Recipient", data.username, " with key ", data.key);
+            const bytes = new Uint8Array(data.key);
+            publicKeys[data.username] = await crypto.subtle.importKey(
+                "spki",
+                bytes.buffer,
+                { name: "RSA-OAEP", hash: "SHA-256" },
+                true,
+                ["encrypt"]
+            );
         }
     };
+
+    const fileInput = document.getElementById("fileInput");
+    fileInput.addEventListener("change", async (e) => {
+        console.log("File has been detected");
+
+        // Get the file
+        const file = e.target.files[0];
+        if (!file) {
+            console.log("Error adding file");
+            return;
+        }
+        const arrayBuffer = await file.arrayBuffer();
+
+        // Encrypt the file
+        const aesKey = await crypto.subtle.generateKey(
+            { name: "AES-GCM", length: 256 },
+            true,
+            ["encrypt", "decrypt"]
+        );
+        
+        const rawKey = await crypto.subtle.exportKey("raw", aesKey);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        
+        const encryptedData = await crypto.subtle.encrypt(
+            { name: "AES-GCM", iv },
+            aesKey,
+            arrayBuffer
+        );
+        const b64data = btoa(String.fromCharCode(...new Uint8Array(encryptedData)));
+
+        // decide the recipients of the file
+        let toSend = [];
+        if (document.getElementById("recipient").value === "all") {
+            toSend = Object.keys(publicKeys).filter(u => u !== username);
+        } else {
+            toSend = [document.getElementById("recipient").value]
+        }
+
+        console.log("Recipients: ", toSend.toString());
+        // wrap the AES key under the recipient's public key
+        for (const recip of toSend) {
+            const pubKey = publicKeys[recip];
+            if (!pubKey) {
+                console.error("No public key for", recip);
+                continue;
+            }
+            const wrapped = await crypto.subtle.encrypt(
+                { name: "RSA-OAEP" }, pubKey, rawKey
+            )
+            const wrappedArray = Array.from(new Uint8Array(wrapped));
+
+            console.log("Sending File...");
+            // Send a separate payload to that one user
+            socket.send(JSON.stringify({
+                type: "file",
+                token,
+                filename: file.name,
+                mime: file.type,
+                encrypted: b64data,
+                iv: Array.from(iv),
+                aesKey: wrappedArray,
+                recipient: recip
+            }));
+            console.log("File Sent");
+        }
+
+        // Show the file on your own chat log
+        const blob = new Blob([arrayBuffer], { type: file.type });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = file.name;
+        link.textContent = `📎 Download: ${file.name}`;
+        link.classList.add("block", "text-blue-500", "hover:underline", "mt-2");
+        document.getElementById("chat-log").appendChild(link);
+    });
 })();
 
 // register a new user (victoria)
@@ -154,15 +252,6 @@ function formatMessage(text) {
     return text;
 }
 
-// Don't delete
- WebSocket.onmessage = function (event) {
-     console.log("Function call from line 92 WebSocket.onmessage");
-    const data = JSON.parse(event.data);
-    const formattedMessage = formatMessage(data.data || data.message || "");
-     document.getElementById("chatBox").innerHTML += `<p>${formattedMessage}</p>`;
- };
-
-
 document.getElementById("message").addEventListener("keydown", function(event) {
     if (event.key === "Enter") {
         event.preventDefault();
@@ -185,23 +274,6 @@ function showError(message) {
     const errorElement = document.getElementById("auth-error");
     errorElement.textContent = message;
     errorElement.classList.remove("hidden");
-}
-
-function updateOnlineUsersList(users) {
-    const dropdown = document.getElementById("recipient");
-    
-    // Clear the previous options (except "All")
-    dropdown.innerHTML = '<option value="all">All</option>';
-
-    users.forEach((user) => {
-        // This is for the Send To Button
-        if (user !== username) {
-            const option = document.createElement("option");
-            option.value = user;
-            option.textContent = user;
-            dropdown.appendChild(option);
-        }
-    });
 }
 
 function handleUserUpdate(serverUsers) {
@@ -233,13 +305,24 @@ function handleUserUpdate(serverUsers) {
 function renderUserLists() {
     const onlineList = document.getElementById("online-users-list");
     const offlineList = document.getElementById("offline-users-list");
+    const dropdown = document.getElementById("recipient");
     onlineList.innerHTML = "";
     offlineList.innerHTML = "";
+    dropdown.innerHTML = '<option value="all">All</option>';
+
   
     onlineUsers.forEach(u => {
       const li = document.createElement("li");
       li.textContent = u;
       onlineList.appendChild(li);
+      
+      if (u !== username)
+      {
+        const option = document.createElement("option");
+        option.value = u;
+        option.textContent = u;
+        dropdown.appendChild(option);
+      }
     });
   
     offlineUsers.forEach(u => {
@@ -248,53 +331,6 @@ function renderUserLists() {
       offlineList.appendChild(li);
     });
   }
-
-const fileInput = document.getElementById("fileInput");
-fileInput.addEventListener("change", async (e) => {
-    console.log("File has been detected");
-    const file = e.target.files[0];
-    if (!file) {
-        console.log("Error adding file");
-        return;
-    }
-    const arrayBuffer = await file.arrayBuffer();
-    const aesKey = await crypto.subtle.generateKey(
-        { name: "AES-GCM", length: 256 },
-        true,
-        ["encrypt"]
-    );
-    
-    const rawKey = await crypto.subtle.exportKey("raw", aesKey);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    
-    const encryptedFile = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
-        aesKey,
-        arrayBuffer
-    );
-    
-    const encryptedAESKey = await crypto.subtle.encrypt(
-        { name: "RSA-OAEP" },
-        rsaKeyPair.publicKey,
-        rawKey
-    );
-    
-    
-    const payload = {
-        type: "file",
-        token,
-        filename: file.name,
-        mime: file.type,
-        encrypted: btoa(String.fromCharCode(...new Uint8Array(encryptedFile))),
-        iv: Array.from(iv),
-        aesKey: Array.from(new Uint8Array(encryptedAESKey)), // Placeholder, to be encrypted via RSA later
-        recipient: document.getElementById("recipient").value
-    };
-    
-    console.log("Sending File...");
-    socket.send(JSON.stringify(payload));
-    console.log("File Sent");
-});
 
 // Delete once file sharing works
 // ws.addEventListener("message", async (event) => {
