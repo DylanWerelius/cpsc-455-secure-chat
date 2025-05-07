@@ -18,7 +18,7 @@ let publicKeys = {};
     );
 
     console.log("RSA key Generated successfully");
-    const ws = new WebSocket("wss://securechat.ddns.net");
+    const ws = new WebSocket("wss://securechat.ddns.net:443");
     //ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
     window.socket = ws;
 
@@ -331,43 +331,3 @@ function renderUserLists() {
       offlineList.appendChild(li);
     });
   }
-
-// Delete once file sharing works
-// ws.addEventListener("message", async (event) => {
-//     console.log("Message read from the file only function");
-//     const data = JSON.parse(event.data);
-//     if (data.type === "file") {
-//         console.log("Receiving a file");
-//         const encryptedAESKey = new Uint8Array(data.aesKey);
-//         const iv = new Uint8Array(data.iv);
-//         const encryptedData = Uint8Array.from(atob(data.encrypted), c => c.charCodeAt(0));
-        
-//         const rawAESKey = await crypto.subtle.decrypt(
-//             { name: "RSA-OAEP" },
-//             rsaKeyPair.privateKey,
-//             encryptedAESKey
-//         );
-              
-//         const aesKey = await crypto.subtle.importKey(
-//             "raw",
-//             rawAESKey,
-//             { name: "AES-GCM" },
-//             false,
-//             ["decrypt"]
-//         );
-              
-//         const decrypted = await crypto.subtle.decrypt(
-//             { name: "AES-GCM", iv },
-//             aesKey,
-//             encryptedData
-//         );
-              
-//         const blob = new Blob([decrypted], { type: data.mime });
-//         const link = document.createElement("a");
-//         link.href = URL.createObjectURL(blob);
-//         link.download = data.filename;
-//         link.textContent = `📎 Download: ${data.filename}`;
-//         link.classList.add("block", "text-blue-500", "hover:underline", "mt-2");
-//         document.getElementById("chatBox").appendChild(link);
-//     }
-// });

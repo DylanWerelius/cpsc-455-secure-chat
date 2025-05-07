@@ -51,7 +51,7 @@ function heartbeat() {
     this.isAlive = true;
 }
 
-server.listen(80, () => {
+server.listen(443, () => {
     console.log("SecureChat is listening on https://securechat.ddns.net and wss://securechat.ddns.net");
 });
 
