@@ -1,0 +1,259 @@
+/* index.css */
+
+/* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  :root {
+    --bg-color: #f3f4f6;
+    --card-bg: #ffffff;
+    --primary-color: #22c55e;
+    --primary-hover: #16a34a;
+    --secondary-color: #3b82f6;
+    --secondary-hover: #2563eb;
+    --error-color: #ef4444;
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background-color: var(--bg-color);
+    font-family: var(--font-family);
+  }
+  
+  h1 {
+    font-size: 2rem;
+    font-weight: bold;
+  }
+  
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  
+  #auth-section {
+    padding: 1rem;
+    background: var(--card-bg);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border-radius: 0.5rem;
+    width: 100%;
+    max-width: 360px;
+  }
+  
+  #auth-section input[type="text"],
+  #auth-section input[type="password"] {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    outline: none;
+    font-size: 1rem;
+  }
+  
+  #auth-section button {
+    width: 100%;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+  }
+  
+  #auth-section button.register {
+    background-color: var(--primary-color);
+    color: #ffffff;
+  }
+  
+  #auth-section button.register:hover {
+    background-color: var(--primary-hover);
+  }
+  
+  #auth-section button.login {
+    background-color: var(--secondary-color);
+    color: #ffffff;
+  }
+  
+  #auth-section button.login:hover {
+    background-color: var(--secondary-hover);
+  }
+  
+  #auth-error {
+    color: var(--error-color);
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    display: none;
+  }
+
+  /* Chat Section */
+  .hidden {
+    display: none;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+  }
+  
+  /* Height is the full page minus the SecureChat title height */
+  .chat-section
+  {
+    display: flex;
+    width: 100%;
+    height: calc(100% - 50px);
+    flex-direction: column;
+  }
+  
+  .page-header {
+    padding: 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    background: var(--bg-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .page-header label {
+    font-weight: 600;
+  }
+  
+  .page-header select {
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    outline: none;
+  }
+
+  .view-area
+  {
+    display: flex;
+    flex-direction: row;
+    height: calc(100vh - 8rem);
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+
+  .chatbox-section {
+    display: flex;
+    flex-direction: column;
+    margin-right: 1rem;
+    flex: 1;
+  }
+
+  .users-section {
+    width: 200px;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    margin-left: 1rem;
+    overflow-y: auto;
+  }
+
+  .users-section h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  .users-section ul {
+    list-style: none;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-left: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  .users-section li {
+    padding: 0.25rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+  }
+  
+  /* Chat Log */
+  #chat-log {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+  }
+  
+  /* File Upload */
+  #fileInput + label {
+    cursor: pointer;
+    color: var(--secondary-color);
+    text-decoration: underline;
+    border: 1px;
+  }
+  
+  /* Message Input & Send */
+  .message-container {
+    display: flex;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .text-box {
+    flex: 1;
+    padding: 0.5rem;
+    border-style: 1px solid #000000;
+    font-size: 1rem;
+  }
+  
+  #emojiPicker {
+    display: none;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-color);
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    position: absolute;
+    bottom: 60px;
+  }
+  
+  .emoji-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.25rem;
+  }
+  
+  /* Send Button */
+  button.send {
+    padding: 0.5rem 1rem;
+    background-color: var(--primary-color);
+    color: #ffffff;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+  }
+  
+  button.send:hover {
+    background-color: var(--primary-hover);
+  }
+  
+  /* Responsive */
+  @media (max-width: 640px) {
+    #auth-section {
+      max-width: 100%;
+      border-radius: 0;
+    }
+  }
+  

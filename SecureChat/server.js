@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
-import { saveMessage, createUser, findUserByUsername ,getDatabase} from "./database.js";
+import { saveMessage, createUser, findUserByUsername, getDatabase, getAllUsers } from "./database.js";
 
 dotenv.config();
 const SECRET_KEY = process.env.SECRET_KEY;
@@ -49,6 +49,19 @@ function updateOnlineUsers() {
     wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({ type: "online_users", users: usersArray }));
+        }
+    });
+}
+
+async function updateUserLists() {
+    const registered = await getAllUsers();
+    const online = Array.from(onlineUsers.keys());
+    const offline = registered.filter(u => !online.includes(u));
+
+    wss.clients.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "online_users",  users: online  }));
+          ws.send(JSON.stringify({ type: "offline_users", users: offline }));
         }
     });
 }
@@ -110,7 +123,8 @@ wss.on("connection", function connection(ws) {
             ws.send(JSON.stringify({ type: "auth", token, username: data.username }));
             onlineUsers.set(data.username, ws);
             broadcastMessage(`${data.username} has joined the chat.`, data.username);
-            updateOnlineUsers();
+            //updateOnlineUsers();
+            await updateUserLists();
 
         } else if (data.type === "message") {
             try {
@@ -153,13 +167,14 @@ wss.on("connection", function connection(ws) {
         }
     });
 
-    ws.on("close", () => {
+    ws.on("close", async () => {
         const entry = Array.from(onlineUsers.entries()).find(([user, socket]) => socket === ws);
         const username = entry ? entry[0] : null;
         if (username) {
             onlineUsers.delete(username);
             broadcastMessage(`${username} has left the chat.`, username);
-            updateOnlineUsers();
+            //updateOnlineUsers();
+            await updateUserLists();
         }
     });
 

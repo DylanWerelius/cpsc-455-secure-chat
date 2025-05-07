@@ -1,6 +1,9 @@
 // Make sure this is the same port as the one in server.js
 let token = "";
 let rsaKeyPair;
+let onlineUsers = [];
+let offlineUsers = [];
+
 (async () => {
     rsaKeyPair = await window.crypto.subtle.generateKey(
         {
@@ -30,8 +33,9 @@ let rsaKeyPair;
             token = data.token;
             username = data.username;
             document.getElementById("auth-section").classList.add("hidden");
-            document.getElementById("chat-section").classList.remove("hidden");
-
+            document.getElementById("chat-page").classList.remove("hidden");
+            document.getElementById("chat-page").classList.add("chat-section");
+            socket.send(JSON.stringify({ type: "get_online_users", token }));
         } else if (data.type === "message") {
             console.log("Message read from correct function");
             addMessage(data.message);
@@ -67,13 +71,22 @@ let rsaKeyPair;
             link.download = data.filename;
             link.textContent = `📎 Download: ${data.filename}`;
             link.classList.add("block", "text-blue-500", "hover:underline", "mt-2");
-            document.getElementById("chat-box").appendChild(link);
+            document.getElementById("chat-log").appendChild(link);
         } else if (data.type === "private_message") {
             addMessage(`[Private] ${data.sender}: ${data.message}`);
         } else if (data.type === "online_users") {
+            handleUserUpdate(data.users);
             updateOnlineUsersList(data.users);
         } else if (data.type === "error") {
             alert(data.message);
+        } else if (data.type === "offline_users") {
+            const offUL = document.getElementById("offline-users-list");
+            offUL.innerHTML = "";
+            data.users.forEach(u => {
+                const li = document.createElement("li");
+                li.textContent = u;
+                offUL.appendChild(li);
+            });
         }
     };
 })();
@@ -165,7 +178,7 @@ function addMessage(message) {
     node.classList.add("text-gray-700", "py-1");
 
     // This will add the message to the chat on the users' screen
-    document.getElementById("chat-box").appendChild(node);
+    document.getElementById("chat-log").appendChild(node);
 }
 
 function showError(message) {
@@ -181,7 +194,7 @@ function updateOnlineUsersList(users) {
     dropdown.innerHTML = '<option value="all">All</option>';
 
     users.forEach((user) => {
-        // Don't include yourself in the list
+        // This is for the Send To Button
         if (user !== username) {
             const option = document.createElement("option");
             option.value = user;
@@ -190,6 +203,51 @@ function updateOnlineUsersList(users) {
         }
     });
 }
+
+function handleUserUpdate(serverUsers) {
+    // remove yourself
+    const current = serverUsers.filter(u => u !== username);
+
+    // Who is offline
+    const wentOffline = onlineUsers.filter(u => !current.includes(u));
+    // Who is online
+    const cameOnline = onlineUsers.filter(u => !onlineUsers.includes(u));
+
+    // move them in n out
+    wentOffline.forEach(u => {
+        offlineUsers.push(u);
+        onlineUsers = onlineUsers.filter(x => x !== u);
+      });
+      cameOnline.forEach(u => {
+        onlineUsers.push(u);
+        offlineUsers = offlineUsers.filter(x => x !== u);
+      });
+    
+      // sync (in case of out‑of‑order)
+      onlineUsers = current.slice();
+    
+      renderUserLists();
+}
+
+// write to the list
+function renderUserLists() {
+    const onlineList = document.getElementById("online-users-list");
+    const offlineList = document.getElementById("offline-users-list");
+    onlineList.innerHTML = "";
+    offlineList.innerHTML = "";
+  
+    onlineUsers.forEach(u => {
+      const li = document.createElement("li");
+      li.textContent = u;
+      onlineList.appendChild(li);
+    });
+  
+    offlineUsers.forEach(u => {
+      const li = document.createElement("li");
+      li.textContent = u;
+      offlineList.appendChild(li);
+    });
+  }
 
 const fileInput = document.getElementById("fileInput");
 fileInput.addEventListener("change", async (e) => {

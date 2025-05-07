@@ -85,3 +85,9 @@ export async function findUserByUsername(username) {
     username
   );
 } 
+
+export async function getAllUsers() {
+  const db = await getDatabase();
+  const rows = await db.all(`SELECT username FROM users`);
+  return rows.map(r => r.username);
+}
