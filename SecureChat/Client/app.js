@@ -16,6 +16,13 @@ let offlineUsers = [];
         ["encrypt", "decrypt"]
     );
 
+    // send your public key to the server so it can relay to everyone else
+    const spki = await crypto.subtle.exportKey("spki", rsaKeyPair.publicKey);
+    socket.send(JSON.stringify({
+        type: "public_key",
+        username,
+        key: Array.from(new Uint8Array(spki))
+    }));
 
     console.log("RSA key Generated successfully");
     const ws = new WebSocket("ws://securechat.ddns.net:80");
@@ -45,6 +52,7 @@ let offlineUsers = [];
             const encryptedAESKey = new Uint8Array(data.aesKey);
             const iv = new Uint8Array(data.iv);
             const encryptedData = Uint8Array.from(atob(data.encrypted), c => c.charCodeAt(0));
+            
             const rawAESKey = await crypto.subtle.decrypt(
                 { name: "RSA-OAEP" },
                 rsaKeyPair.privateKey,
@@ -154,15 +162,6 @@ function formatMessage(text) {
     return text;
 }
 
-// Don't delete
- WebSocket.onmessage = function (event) {
-     console.log("Function call from line 92 WebSocket.onmessage");
-    const data = JSON.parse(event.data);
-    const formattedMessage = formatMessage(data.data || data.message || "");
-     document.getElementById("chatBox").innerHTML += `<p>${formattedMessage}</p>`;
- };
-
-
 document.getElementById("message").addEventListener("keydown", function(event) {
     if (event.key === "Enter") {
         event.preventDefault();
@@ -252,48 +251,67 @@ function renderUserLists() {
 const fileInput = document.getElementById("fileInput");
 fileInput.addEventListener("change", async (e) => {
     console.log("File has been detected");
+
+    // Get the file
     const file = e.target.files[0];
     if (!file) {
         console.log("Error adding file");
         return;
     }
     const arrayBuffer = await file.arrayBuffer();
+
+    // Encrypt the file
     const aesKey = await crypto.subtle.generateKey(
         { name: "AES-GCM", length: 256 },
         true,
-        ["encrypt"]
+        ["encrypt", "decrypt"]
     );
     
     const rawKey = await crypto.subtle.exportKey("raw", aesKey);
     const iv = crypto.getRandomValues(new Uint8Array(12));
     
-    const encryptedFile = await crypto.subtle.encrypt(
+    const encryptedData = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv },
         aesKey,
         arrayBuffer
     );
-    
-    const encryptedAESKey = await crypto.subtle.encrypt(
-        { name: "RSA-OAEP" },
-        rsaKeyPair.publicKey,
-        rawKey
-    );
-    
-    
-    const payload = {
-        type: "file",
-        token,
-        filename: file.name,
-        mime: file.type,
-        encrypted: btoa(String.fromCharCode(...new Uint8Array(encryptedFile))),
-        iv: Array.from(iv),
-        aesKey: Array.from(new Uint8Array(encryptedAESKey)), // Placeholder, to be encrypted via RSA later
-        recipient: document.getElementById("recipient").value
-    };
-    
-    console.log("Sending File...");
-    socket.send(JSON.stringify(payload));
-    console.log("File Sent");
+    const b64data = btoa(String.fromCharCode(...new Uint8Array(encryptedData)));
+
+    // decide the recipients of the file
+    let toSend = [];
+    if (document.getElementById("recipient").value === "all") {
+        toSend = Object.keys(publicKey).filter(u => u !== username);
+    } else {
+        toSend = [document.getElementById("recipient").value]
+    }
+
+    // wrap the AES key under the recipient's public key
+    for (const recip of toSend) {
+        const pubKey = publicKey[recip];
+        if (!pubKey) {
+            console.error("No public key for", recip);
+            continue;
+        }
+        const wrapped = await crypto.subtle.encrypt(
+            { name: "RSA-OAEP" }, pubKey, rawKey
+        )
+        const wrappedArray = Array.from(new Uint8Array(wrapped));
+
+        console.log("Sending File...");
+        console.log(payload);
+        // Send a separate payload to that one user
+        socket.send(JSON.stringify({
+            type: "file",
+            token,
+            filename: file.name,
+            mime: file.type,
+            encrypted: b64data,
+            iv: Array.from(iv),
+            aesKey: wrappedArray,
+            recipient: recip
+        }));
+        console.log("File Sent");
+    }
 });
 
 // Delete once file sharing works

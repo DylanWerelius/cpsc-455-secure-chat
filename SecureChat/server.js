@@ -164,6 +164,12 @@ wss.on("connection", function connection(ws) {
             } catch (err) {
                 ws.send(JSON.stringify({ type: "error", message: "Invalid token" }));
             }
+        } else if (data.type === "public_key") {
+            wss.clients.forEach(c => {
+                if (c.readyState === WebSocket.OPEN && c !== ws) {
+                  c.send(JSON.stringify(data));
+                }
+            });
         }
     });
 
