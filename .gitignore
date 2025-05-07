@@ -137,3 +137,6 @@ dist
 
 # Visual Studio Code History
 .history/
+
+# Distributions
+distribution/

@@ -4,48 +4,91 @@
 
 <html lang="en">
     <head>
-        <title>SecureChat</title>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+        <title>SecureChat</title>
+        <link rel="stylesheet" href="index.css" />
         <script defer src="app.js"></script>
     </head>
 
-    <body class = "flex flex-col items-center justify-center h-screen bg-gray-100">
-        <h1 class = "text-2xl font-bold mb-4">SecureChat</h1>
+    <body>
+        <h1>SecureChat</h1>
 
         <!-- register form & login form -->
-        <div id="auth-section" class="p-4 bg-white shadow-md rounded-lg">
-            <h2 class="text-xl font-semibold mb-2">Register / Login</h2>
-            <input id="username" type="text" placeholder="Username" class="border px-3 py-2 mb-2 w-full rounded"/>
-            <input id="password" type="password" placeholder="Password" class="border px-3 py-2 mb-2 w-full rounded"/>
-            <button onclick="register()" class="bg-green-500 text-white px-4 py-2 rounded w-full mb-2 
-                hover:bg-green-600 transition-colors focus:ring-2 focus:ring-green-300">Register</button>
-            <button onclick="login()" class="bg-blue-500 text-white px-4 py-2 rounded w-full 
-                hover:bg-blue-600 transition-colors focus:ring-2 focus:ring-blue-300">Login</button>
-            <p id="auth-error" class="text-red-500 mt-2 text-sm hidden"></p>
+        <div id="auth-section">
+            <h2>Register / Login</h2>
+            <input id="username" type="text" placeholder="Username" />
+            <input id="password" type="password" placeholder="Password" />
+            <button onclick="register()" class="register">Register</button>
+            <button onclick="login()" class="login">Login</button>
+            <p id="auth-error"></p>
         </div>
 
         <!-- Chat section(Hidden until logged in)-->
-        <div id="chat-section" class="h-screen w-screen flex flex-col justify-between hidden">
+        <div id="chat-page" class="hidden">
             <!-- This is the section that controls who you are sending messages to -->
-            <div class="p-4 border rounded w-full flex items-center space-x-2 bg-gray-100">
-                <label for="recipient" class="font-semibold">Send To:</label>
-                <select id="recipient" class="p-2 border rounded bg-white">
+            <div class="page-header">
+                <label for="recipient">Send To:</label>
+                <select id="recipient">
                     <option value="all">All</option>
                 </select>
             </div>
-            <div id="chat-box" class="p-3 overflow-auto">
-                <!-- This is where the messages will go -->
+
+            <!-- This stores the online users area and the chat/messagebox -->
+            <div class="view-area">
+                <!-- This is where the users will be displayed -->
+                <div class="users-section">
+                    <div>
+                        <!-- list of online users -->
+                        <h2>Online Users</h2>
+                        <ul id="online-users-list">
+                            <li>Test User Number Long Username Testing This Long user Name</li>
+                            <li>Test User</li>
+                            <li>Test User</li>
+                            <li>Test User</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <!-- list of offline users -->
+                        <h2>Offline Users</h2>
+                        <ul id="offline-users-list">
+                            <li>Test User</li>
+                            <li>Test User</li>
+                            <li>Test User</li>
+                            <li>Test User</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="chatbox-section">
+                    <div id="chat-log">
+                        <!-- This is where the messages will go -->
+                    </div>
+
+                    <!-- This is the div that holds the message and send button -->
+                    <div class="message-container">
+                        <!-- This is the message box -->
+                        <input type="file" id="fileInput" class="hidden" />
+                        <label for="fileInput">📎 Upload File</label>
+                        <input id="message" class="text-box" type="text" placeholder="Type your message..." />
+                        <button class="emoji-toggle" onclick="toggleEmojiPicker()">😀</button>
+                        <div id="emojiPicker">
+                            <button onclick="addEmoji('😀')">😀</button>
+                            <button onclick="addEmoji('😂')">😂</button>
+                            <button onclick="addEmoji('😍')">😍</button>
+                            <button onclick="addEmoji('🔥')">🔥</button>
+                            <button onclick="addEmoji('🎉')">🎉</button>
+                            <button onclick="addEmoji('👍')">👍</button>
+                        </div>                                   
+                        
+                        <!-- This is the send button -->
+                        <button class="send" onclick="sendMessage()">Send</button>
+                    </div>
+                </div>
             </div>
-            <!-- This is the div that holds the message and send button -->
-            <div class="flex">
-                <!-- This is the message box -->
-                <input id="message" type="text" class="px-3 w-full border-t border-gray-300 outline-none text-gray-700" 
-                placeholder="Type your message..." />
-                <!-- This is the send button -->
-                <button class="px-8 py-3 bg-green-500 text-white hover:bg-green-600 transition-colors" onclick="sendMessage()">Send</button>
-            </div>
+        
         </div>
     </body>
 </html>

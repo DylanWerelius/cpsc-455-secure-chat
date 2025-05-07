@@ -1,34 +1,102 @@
 // Make sure this is the same port as the one in server.js
-const ws = new WebSocket("ws://securechat.ddns.net:80");
 let token = "";
+let rsaKeyPair;
+let onlineUsers = [];
+let offlineUsers = [];
 
-ws.onopen = () => console.log("Connected to the server>");
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
+(async () => {
+    rsaKeyPair = await window.crypto.subtle.generateKey(
+        {
+            name: "RSA-OAEP",
+            modulusLength: 4096,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256"
+        },
+        true,
+        ["encrypt", "decrypt"]
+    );
 
-    if (data.type === "auth"){
-        token = data.token;
-        username = username = data.username;
-        //alert("Logged in Successfully!");
-        document.getElementById("auth-section").classList.add("hidden");
-        document.getElementById("chat-section").classList.remove("hidden");
-    } else if (data.type === "message") {
-        addMessage(data.data);
-    } else if (data.type === "private_message") {
-        addMessage(`[Private] ${data.sender}: ${data.message}`);
-    } else if (data.type === "online_users") {
-        updateOnlineUsersList(data.users);
-    } else if (data.type === "error") {
-        alert(data.message);
-    }
-};
+
+    console.log("RSA key Generated successfully");
+    const ws = new WebSocket("ws://securechat.ddns.net:80");
+    //ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
+    window.socket = ws;
+
+    ws.onopen = () => console.log("Connected to the server");
+
+
+    // This function is used to detect messages being received
+    ws.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "auth") {
+            token = data.token;
+            username = data.username;
+            document.getElementById("auth-section").classList.add("hidden");
+            document.getElementById("chat-page").classList.remove("hidden");
+            document.getElementById("chat-page").classList.add("chat-section");
+            socket.send(JSON.stringify({ type: "get_online_users", token }));
+        } else if (data.type === "message") {
+            console.log("Message read from correct function");
+            addMessage(data.message);
+
+        } else if (data.type === "file") {
+            console.log("Receiving a file");
+            const encryptedAESKey = new Uint8Array(data.aesKey);
+            const iv = new Uint8Array(data.iv);
+            const encryptedData = Uint8Array.from(atob(data.encrypted), c => c.charCodeAt(0));
+            const rawAESKey = await crypto.subtle.decrypt(
+                { name: "RSA-OAEP" },
+                rsaKeyPair.privateKey,
+                encryptedAESKey
+            );
+
+            const aesKey = await crypto.subtle.importKey(
+                "raw",
+                rawAESKey,
+                { name: "AES-GCM" },
+                false,
+                ["decrypt"]
+            );
+
+            const decrypted = await crypto.subtle.decrypt(
+                { name: "AES-GCM", iv },
+                aesKey,
+                encryptedData
+            );
+
+            const blob = new Blob([decrypted], { type: data.mime });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = data.filename;
+            link.textContent = `📎 Download: ${data.filename}`;
+            link.classList.add("block", "text-blue-500", "hover:underline", "mt-2");
+            document.getElementById("chat-log").appendChild(link);
+        } else if (data.type === "private_message") {
+            addMessage(`[Private] ${data.sender}: ${data.message}`);
+        } else if (data.type === "online_users") {
+            handleUserUpdate(data.users);
+            updateOnlineUsersList(data.users);
+        } else if (data.type === "error") {
+            alert(data.message);
+        } else if (data.type === "offline_users") {
+            const offUL = document.getElementById("offline-users-list");
+            offUL.innerHTML = "";
+            data.users.forEach(u => {
+                const li = document.createElement("li");
+                li.textContent = u;
+                offUL.appendChild(li);
+            });
+        }
+    };
+})();
 
 // register a new user (victoria)
 function register() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     if (!username || !password) return showError("Please enter a username and password.");
-    ws.send(JSON.stringify({ type: "register", username, password }));
+    socket.send(JSON.stringify({ type: "register", username, password }));
 }
 
 // user authentication (login) (victoria)
@@ -36,7 +104,7 @@ function login() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     if (!username || !password) return showError("Please enter a username and password.");
-    ws.send(JSON.stringify({ type: "login", username, password }));
+    socket.send(JSON.stringify({ type: "login", username, password }));
 }
 
 function sendMessage() {
@@ -44,9 +112,9 @@ function sendMessage() {
     const recipient = document.getElementById("recipient").value;
     const message = messageInput.value.trim();
 
-    // This will catch if the user just clicks the send button with nothing in the text box
+    // This is where the message gets sent
     if (message) {
-        ws.send(JSON.stringify({
+        socket.send(JSON.stringify({
             type: "message",
             token,
             recipient,
@@ -55,6 +123,45 @@ function sendMessage() {
         document.getElementById("message").value = "";
     }
 }
+// select emoji 
+function toggleEmojiPicker() {
+    const picker = document.getElementById("emojiPicker");
+    picker.style.display = picker.style.display === "none" ? "flex" : "none";
+  }
+// add emoji to text feild
+function addEmoji(emoji) {
+    const input = document.getElementById("message");
+    if (input) {
+      input.value += emoji;
+      input.focus(); // optional: refocus input after insert
+    }
+  }
+
+document.querySelectorAll(".emoji").forEach(emoji => {
+    emoji.addEventListener("click", function () {
+        const messageInput = document.getElementById("message");
+        messageInput.value += this.innerText; // Insert emoji into input field
+        document.getElementById("emojiPicker").style.display = "none"; // Hide picker after selection
+    });
+});
+
+//
+function formatMessage(text) {
+    if (typeof text !== "string") return ""; // ⛔ skip non-string
+    text = text.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+    text = text.replace(/\*(.*?)\*/g, "<i>$1</i>");
+    text = text.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>');
+    return text;
+}
+
+// Don't delete
+ WebSocket.onmessage = function (event) {
+     console.log("Function call from line 92 WebSocket.onmessage");
+    const data = JSON.parse(event.data);
+    const formattedMessage = formatMessage(data.data || data.message || "");
+     document.getElementById("chatBox").innerHTML += `<p>${formattedMessage}</p>`;
+ };
+
 
 document.getElementById("message").addEventListener("keydown", function(event) {
     if (event.key === "Enter") {
@@ -71,7 +178,7 @@ function addMessage(message) {
     node.classList.add("text-gray-700", "py-1");
 
     // This will add the message to the chat on the users' screen
-    document.getElementById("chat-box").appendChild(node);
+    document.getElementById("chat-log").appendChild(node);
 }
 
 function showError(message) {
@@ -87,7 +194,7 @@ function updateOnlineUsersList(users) {
     dropdown.innerHTML = '<option value="all">All</option>';
 
     users.forEach((user) => {
-        // Don't include yourself in the list
+        // This is for the Send To Button
         if (user !== username) {
             const option = document.createElement("option");
             option.value = user;
@@ -96,3 +203,135 @@ function updateOnlineUsersList(users) {
         }
     });
 }
+
+function handleUserUpdate(serverUsers) {
+    // remove yourself
+    const current = serverUsers.filter(u => u !== username);
+
+    // Who is offline
+    const wentOffline = onlineUsers.filter(u => !current.includes(u));
+    // Who is online
+    const cameOnline = onlineUsers.filter(u => !onlineUsers.includes(u));
+
+    // move them in n out
+    wentOffline.forEach(u => {
+        offlineUsers.push(u);
+        onlineUsers = onlineUsers.filter(x => x !== u);
+      });
+      cameOnline.forEach(u => {
+        onlineUsers.push(u);
+        offlineUsers = offlineUsers.filter(x => x !== u);
+      });
+    
+      // sync (in case of out‑of‑order)
+      onlineUsers = current.slice();
+    
+      renderUserLists();
+}
+
+// write to the list
+function renderUserLists() {
+    const onlineList = document.getElementById("online-users-list");
+    const offlineList = document.getElementById("offline-users-list");
+    onlineList.innerHTML = "";
+    offlineList.innerHTML = "";
+  
+    onlineUsers.forEach(u => {
+      const li = document.createElement("li");
+      li.textContent = u;
+      onlineList.appendChild(li);
+    });
+  
+    offlineUsers.forEach(u => {
+      const li = document.createElement("li");
+      li.textContent = u;
+      offlineList.appendChild(li);
+    });
+  }
+
+const fileInput = document.getElementById("fileInput");
+fileInput.addEventListener("change", async (e) => {
+    console.log("File has been detected");
+    const file = e.target.files[0];
+    if (!file) {
+        console.log("Error adding file");
+        return;
+    }
+    const arrayBuffer = await file.arrayBuffer();
+    const aesKey = await crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt"]
+    );
+    
+    const rawKey = await crypto.subtle.exportKey("raw", aesKey);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    
+    const encryptedFile = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        aesKey,
+        arrayBuffer
+    );
+    
+    const encryptedAESKey = await crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        rsaKeyPair.publicKey,
+        rawKey
+    );
+    
+    
+    const payload = {
+        type: "file",
+        token,
+        filename: file.name,
+        mime: file.type,
+        encrypted: btoa(String.fromCharCode(...new Uint8Array(encryptedFile))),
+        iv: Array.from(iv),
+        aesKey: Array.from(new Uint8Array(encryptedAESKey)), // Placeholder, to be encrypted via RSA later
+        recipient: document.getElementById("recipient").value
+    };
+    
+    console.log("Sending File...");
+    socket.send(JSON.stringify(payload));
+    console.log("File Sent");
+});
+
+// Delete once file sharing works
+// ws.addEventListener("message", async (event) => {
+//     console.log("Message read from the file only function");
+//     const data = JSON.parse(event.data);
+//     if (data.type === "file") {
+//         console.log("Receiving a file");
+//         const encryptedAESKey = new Uint8Array(data.aesKey);
+//         const iv = new Uint8Array(data.iv);
+//         const encryptedData = Uint8Array.from(atob(data.encrypted), c => c.charCodeAt(0));
+        
+//         const rawAESKey = await crypto.subtle.decrypt(
+//             { name: "RSA-OAEP" },
+//             rsaKeyPair.privateKey,
+//             encryptedAESKey
+//         );
+              
+//         const aesKey = await crypto.subtle.importKey(
+//             "raw",
+//             rawAESKey,
+//             { name: "AES-GCM" },
+//             false,
+//             ["decrypt"]
+//         );
+              
+//         const decrypted = await crypto.subtle.decrypt(
+//             { name: "AES-GCM", iv },
+//             aesKey,
+//             encryptedData
+//         );
+              
+//         const blob = new Blob([decrypted], { type: data.mime });
+//         const link = document.createElement("a");
+//         link.href = URL.createObjectURL(blob);
+//         link.download = data.filename;
+//         link.textContent = `📎 Download: ${data.filename}`;
+//         link.classList.add("block", "text-blue-500", "hover:underline", "mt-2");
+//         document.getElementById("chatBox").appendChild(link);
+//     }
+// });

@@ -2,29 +2,49 @@
 // Written by Dylan Werelius & Victoria Guzman
 // Video Reference: https://youtu.be/TItbp7c9MNQ
 
+// Updated server.js with SQLite user auth
 import WebSocket, { WebSocketServer } from "ws";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+import { saveMessage, createUser, findUserByUsername, getDatabase, getAllUsers } from "./database.js";
+
 dotenv.config();
+const SECRET_KEY = process.env.SECRET_KEY;
+const messageRateLimit = new Map();
+const onlineUsers = new Map();
+const loginAttempts = new Map();
 
-const SECRET_KEY = process.env.SECRET_KEY;// REPLACE WITH YOUR SECRET KEY
-const users = new Map(); //store users (username -> hashed password)
-const messageRateLimt = new Map(); //stores last message timestamp per user
-const onlineUsers = new Map(); //stores active websocket connectins
+const MAX_ATTEMPTS = 5;
+const LOCK_TIME_MS = 60000;
+const securityLogPath = path.join("logs", "security.txt");
+const logDir = path.join(process.cwd(), "logs");
+if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 
+(async () => {
+    await getDatabase();
+    console.log("SQLite initialized");
+  })();
+  
 
-// Make sure this is the same port aas index.htmls
-const wss = new WebSocketServer({ host: '0.0.0.0', port: 80 })
+function logSecurityEvent(username, reason) {
+  const logLine = `${new Date().toISOString()} - ${username}: ${reason}\n`;
+  fs.appendFile(securityLogPath, logLine, (err) => {
+    if (err) console.error("Failed to write security log:", err);
+  });
+}
 
-// checks if connection is alive
+//const wss = new WebSocketServer({ host: '0.0.0.0', port: 3000 });//lochost testing
+
+const wss = new WebSocketServer({ host: '0.0.0.0', port: 80 });
+
 function heartbeat() {
     this.isAlive = true;
 }
 
-// This function will help us keep track of what users are currently online
 function updateOnlineUsers() {
-    console.log("Updating online users");
     const usersArray = Array.from(onlineUsers.keys());
     wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
@@ -33,117 +53,207 @@ function updateOnlineUsers() {
     });
 }
 
+async function updateUserLists() {
+    const registered = await getAllUsers();
+    const online = Array.from(onlineUsers.keys());
+    const offline = registered.filter(u => !online.includes(u));
+
+    wss.clients.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "online_users",  users: online  }));
+          ws.send(JSON.stringify({ type: "offline_users", users: offline }));
+        }
+    });
+}
+
+function logMessageToFile(sender, recipient, message) {
+    const timestamp = new Date().toISOString();
+    const logLine = `${timestamp} - ${sender} → ${recipient}: ${message}\n`;
+    const filePath = path.join(logDir, `chat_${sender}_to_${recipient}.txt`);
+    fs.appendFile(filePath, logLine, (err) => {
+        if (err) console.error(" Failed to write log:", err);
+    });
+}
+
 wss.on("connection", function connection(ws) {
-    console.log("Client Connected");
     ws.isAlive = true;
-    ws.on("pong", heartbeat); //Clinet responds to server's ping
+    ws.on("pong", heartbeat);
 
     ws.on("message", async function message(message) {
         const data = JSON.parse(message);
 
         if (data.type === "register") {
-            //register a new user
-            if (users.has(data.username)){
-                ws.send(JSON.stringify({ type: "error", message: "Username already taken."}));
+            const existingUser = await findUserByUsername(data.username);
+            if (existingUser) {
+                ws.send(JSON.stringify({ type: "error", message: "Username already taken." }));
                 return;
             }
             const hashedPassword = await bcrypt.hash(data.password, 10);
-            users.set(data.username, hashedPassword);
-            ws.send(JSON.stringify({ type:"success", message: "User registered."}));
+            await createUser(data.username, hashedPassword);
+            ws.send(JSON.stringify({ type: "success", message: "User registered." }));
+
         } else if (data.type === "login") {
-            //user authentication 
-            if(!users.has(data.username)){
+            const now = Date.now();
+            const attempts = loginAttempts.get(data.username) || { count: 0, lastAttempt: 0 };
+            if (attempts.count >= MAX_ATTEMPTS && (now - attempts.lastAttempt < LOCK_TIME_MS)) {
+                logSecurityEvent(data.username, "Account locked due to too many failed attempts");
+                ws.send(JSON.stringify({ type: "error", message: "Too many failed login attempts. Please wait before trying again." }));
+                return;
+            }
+
+            const userRecord = await findUserByUsername(data.username);
+            if (!userRecord) {
+                logSecurityEvent(data.username, "User not found");
                 ws.send(JSON.stringify({ type: "error", message: "User not found." }));
                 return;
             }
-           const valid = await bcrypt.compare(data.password, users.get (data.username));
-           if (!valid) {
-            ws.send(JSON.stringify({ type: "error", message: "Invaild credentials."}));
-            return; 
-           }
-           const token = jwt.sign({ username: data.username }, SECRET_KEY, {expiresIn: "1hr"});
-           ws.send(JSON.stringify({type: "auth", token, username: data.username }));
 
-           //Store user connections
-           onlineUsers.set(data.username, ws);
-           broadcastMessage(`${data.username} has joined the chat.`);
-           updateOnlineUsers();
+            const valid = await bcrypt.compare(data.password, userRecord.password);
+            if (!valid) {
+                attempts.count++;
+                attempts.lastAttempt = now;
+                loginAttempts.set(data.username, attempts);
+                logSecurityEvent(data.username, "Invalid password");
+                ws.send(JSON.stringify({ type: "error", message: "Invalid credentials." }));
+                return;
+            }
+
+            loginAttempts.delete(data.username);
+            const token = jwt.sign({ username: data.username }, SECRET_KEY, { expiresIn: "1h" });
+            ws.send(JSON.stringify({ type: "auth", token, username: data.username }));
+            onlineUsers.set(data.username, ws);
+            broadcastMessage(`${data.username} has joined the chat.`, data.username);
+            //updateOnlineUsers();
+            await updateUserLists();
+
         } else if (data.type === "message") {
-            //Authenticate token before allowing messages
-            try{
+            try {
                 const decoded = jwt.verify(data.token, SECRET_KEY);
                 const username = decoded.username;
                 const now = Date.now();
 
-                // Note: move this and delete when stable
-                // broadcastMessage(`${username}: ${data.data}`);
-
-                // Rate limit: Allow only one message per second 
-                if (messageRateLimt.has(username) && now - messageRateLimt.get(username) < 1000) {
-                    ws.send(JSON.stringify({ type: "error", message: "You're sending messages too fast! Try again in a second."}));
+                if (messageRateLimit.has(username) && now - messageRateLimit.get(username) < 1000) {
+                    ws.send(JSON.stringify({ type: "error", message: "You're sending messages too fast! Try again in a second." }));
                     return;
                 }
 
-                messageRateLimt.set(username, now); //Upate timestamp
+                messageRateLimit.set(username, now);
 
-                // Check the name of the recipient
-                console.log(data.recipient);
-                // This is to determine if the message is a DM or general message
-                if (data.recipient != "all") {
+                if (data.recipient !== "all") {
                     sendPrivateMessage(username, data.recipient, data.data);
                 } else {
-                    broadcastMessage(`${username}: ${data.data}`);
+                    broadcastMessage(`${username}: ${data.data}`, username);
                 }
 
+                await saveMessage(username, data.recipient, data.data);
             } catch (err) {
-                ws.send(JSON.stringify({ type: "error", message: "Invalid token."}));
+                ws.send(JSON.stringify({ type: "error", message: "Invalid token." }));
+            }
+        } else if (data.type === "file") {
+            try {
+                const decoded = jwt.verify(data.token, SECRET_KEY);
+                const username = decoded.username;
+
+                if (data.recipient && data.recipient !== "all") {
+                    sendPrivateFile(username, data.recipient, data);
+                } else {
+                    broadcastFile(username, data);
+                }
+
+                await saveMessage(username, data.recipient, `[File] ${data.filename}`);
+            } catch (err) {
+                ws.send(JSON.stringify({ type: "error", message: "Invalid token" }));
             }
         }
     });
-    ws.on("close", () => {
-        // Retrieve username
-        const entry = Array.from(onlineUsers.entries()).find(([users, socket]) => socket === ws);
+
+    ws.on("close", async () => {
+        const entry = Array.from(onlineUsers.entries()).find(([user, socket]) => socket === ws);
         const username = entry ? entry[0] : null;
-
-
         if (username) {
             onlineUsers.delete(username);
-            console.log("Client Disconnected. ");
-            broadcastMessage(`${username} has left the chat.`);
-            updateOnlineUsers();
+            broadcastMessage(`${username} has left the chat.`, username);
+            //updateOnlineUsers();
+            await updateUserLists();
         }
     });
+
     function broadcastMessage(message, senderUsername = null) {
         wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({ 
-                    type: "message", 
-                    data: message
-                }));
+                client.send(JSON.stringify({ type: "message", message }));
             }
         });
+        if (senderUsername) logMessageToFile(senderUsername, "All", message);
     }
+
     function sendPrivateMessage(sender, recipient, message) {
         const recipientSocket = onlineUsers.get(recipient);
         if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
             recipientSocket.send(JSON.stringify({ type: "private_message", sender, message }));
             ws.send(JSON.stringify({ type: "private_message", sender: "You", message }));
+            logMessageToFile(sender, recipient, message);
         } else {
             ws.send(JSON.stringify({ type: "error", message: `User ${recipient} is not online.` }));
+            logMessageToFile(sender, `${recipient} (offline)`, message);
+        }
+    }
+
+    // This is like the broadcastMessage function but for files
+    function broadcastFile(sender, fileData) {
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                    type: "file",
+                    sender,
+                    filename: fileData.filename,
+                    mime: fileData.mime,
+                    encrypted: fileData.encrypted,
+                    iv: fileData.iv,
+                    aesKey: fileData.aesKey
+                }));
+            }
+        });
+        logMessageToFile(sender, "All", `[File] ${fileData.filename}`);
+    }
+
+    function sendPrivateFile(sender, recipient, fileData) {
+        const recipientSocket = onlineUsers.get(recipient);
+        if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
+            recipientSocket.send(JSON.stringify({
+                type: "file",
+                sender,
+                filename: fileData.filename,
+                mime: fileData.mime,
+                encrypted: fileData.encrypted,
+                iv: fileData.iv,
+                aesKey: fileData.aesKey
+            }));
+
+            // Send a copy to the sender's client to show the file was sent.
+            ws.send(JSON.stringify({
+                type: "file",
+                sender: "You",
+                filename: fileData.filename,
+                mime: fileData.mime,
+                encrypted: fileData.encrypted,
+                iv: fileData.iv,
+                aesKey: fileData.aesKey
+            }));
+            logMessageToFile(sender, recipient, `[File] ${fileData.filename}`);
+        } else {
+            ws.send(JSON.stringify({ type: "error", message: `User ${recipient} is not online.` }));
+            logMessageToFile(sender, `${recipient} (offline)`, `[File] ${fileData.filename}`);
         }
     }
 });
 
-// Periodically check if the connection is alive
-const interval = setInterval(() => {
+setInterval(() => {
     wss.clients.forEach((ws) => {
-        if (!ws.isAlive) {
-            console.log("Terminating inactive connection");
-            return ws.terminate();
-        }
+        if (!ws.isAlive) return ws.terminate();
         ws.isAlive = false;
-        ws.ping();// send a ping to check if client is still active
+        ws.ping();
     });
-}, 10000); // Runs every 10 seconds
+}, 10000);
 
-console.log("WebSocket server is running...");
+console.log("WebSocket server is running on ws://0.0.0.0:80");
