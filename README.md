@@ -1,5 +1,5 @@
 # cpsc 455 secure chat
-Created by Dylan Werelius & Victoria Guzman
+Created by Dylan Werelius & Victoria Guzman <br>
 https://secure-chat-evergarden.glitch.me
  
 Instructions for running:
