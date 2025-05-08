@@ -18,7 +18,7 @@ let publicKeys = {};
     );
 
     console.log("RSA key Generated successfully");
-    const ws = new WebSocket("wss://securechat.ddns.net:443");
+    const ws = new WebSocket("wss://securechat.ddns.net");
     //ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
     window.socket = ws;
 
