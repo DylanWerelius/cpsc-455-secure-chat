@@ -1,0 +1,10 @@
+# Changelog
+
+{{#each releases}}
+## {{title}} - {{date}}
+
+{{#each commits}}
+{{hash}} - {{author}}, {{date format="YYYY-MM-DD HH:mm:ss"}} : {{subject}}
+{{/each}}
+
+{{/each}}

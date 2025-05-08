@@ -5,8 +5,34 @@ let onlineUsers = [];
 let offlineUsers = [];
 let publicKeys = {};
 let reconnectInterval = 1000; // start with 1s
+let socket;
+function connectWebSocket() {
+    
+
+    console.log("RSA key Generated successfully");
+    const ws = new WebSocket("wss://securechat.ddns.net:443");
+
+    //ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
+    window.socket = ws;
 
 
+    ws.onopen = () => {
+        console.log("Connected to the server");
+        reconnectInterval = 1000;
+      };      
+
+    ws.onclose = () => {
+        console.warn("Disconnected. Reconnecting in", reconnectInterval / 1000, "s");
+        setTimeout(connectWebSocket, reconnectInterval);
+        reconnectInterval = Math.min(reconnectInterval * 2, 30000); // cap at 30s
+    };
+
+    ws.onerror = (e) => console.error("WebSocket error:", e);
+
+    ws.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+    };
+}
 function updateConnectionStatus(connected) {
     const banner = document.getElementById("connection-status");
     if (!banner) return;
@@ -27,29 +53,6 @@ connectWebSocket();
         true,
         ["encrypt", "decrypt"]
     );
-function connectWebSocket() {
-    
-
-    console.log("RSA key Generated successfully");
-    const ws = new WebSocket("wss://securechat.ddns.net:443");
-    
-
-    ws.onopen = () => {
-        console.log("Connected to the server");
-        reconnectInterval = 1000;
-      };      
-
-    ws.onclose = () => {
-        console.warn("⚠️ Disconnected. Reconnecting in", reconnectInterval / 1000, "s");
-        setTimeout(connectWebSocket, reconnectInterval);
-        reconnectInterval = Math.min(reconnectInterval * 2, 30000); // cap at 30s
-    };
-
-    ws.onerror = (e) => console.error("WebSocket error:", e);
-
-    ws.onmessage = async (event) => {
-        const data = JSON.parse(event.data);
-    };
 
     // This function is used to detect messages being received
     ws.onmessage = async (event) => {
@@ -166,9 +169,15 @@ function connectWebSocket() {
                 true,
                 ["encrypt"]
             );
+        } else if (data.type === "success") {
+            alert(data.message);
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            if (!username || !password) return showError("Please enter a username and password.");
+            socket.send(JSON.stringify({ type: "login-no-captcha", username, password }));
         }
     };
-}
+
     const fileInput = document.getElementById("fileInput");
     fileInput.addEventListener("change", async (e) => {
         console.log("File has been detected");
@@ -247,18 +256,44 @@ function connectWebSocket() {
 
 // register a new user (victoria)
 function register() {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        return showError("WebSocket not ready. Please wait...");
+    }
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     if (!username || !password) return showError("Please enter a username and password.");
-    socket.send(JSON.stringify({ type: "register", username, password }));
+  
+    // Add Captcha Check
+    console.log("Validating Captcha");
+    const captchaResponse = grecaptcha.getResponse();
+    
+    if (!captchaResponse) {
+        showError("Please complete the CAPTCHA");
+        return;
+    }
+  
+    socket.send(JSON.stringify({ type: "register", username, password, recaptchaToken: captchaResponse }));
 }
 
 // user authentication (login) (victoria)
 function login() {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        return showError("WebSocket not ready. Please wait...");
+    }
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     if (!username || !password) return showError("Please enter a username and password.");
-    socket.send(JSON.stringify({ type: "login", username, password }));
+  
+    // Add Captcha Check
+    console.log("Validating Captcha");
+    const captchaResponse = grecaptcha.getResponse();
+    
+    if (!captchaResponse) {
+        showError("Please complete the CAPTCHA");
+        return;
+    }
+    
+    window.socket.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
 }
 
 async function sendMessage() {

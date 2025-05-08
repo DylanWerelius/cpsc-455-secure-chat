@@ -9,10 +9,23 @@
         <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
         <title>SecureChat</title>
         <link rel="stylesheet" href="index.css" />
+        <script src="https://www.google.com/recaptcha/enterprise.js" async defer></script>
+        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
         <script defer src="app.js"></script>
     </head>
 
     <body>
+        <div id="connection-status" style="
+            display: none;
+            background-color: #f44336;
+            color: white;
+            text-align: center;
+            padding: 6px;
+            font-weight: bold;
+        ">
+            Reconnecting...
+        </div>
+
         <h1>SecureChat</h1>
 
         <!-- register form & login form -->
@@ -20,6 +33,12 @@
             <h2>Register / Login</h2>
             <input id="username" type="text" placeholder="Username" />
             <input id="password" type="password" placeholder="Password" />
+          
+            <!-- reCAPTCHA widget -->
+            <!-- <div class="g-recaptcha" data-sitekey="6LcuJTIrAAAAAJKjbtRKPasm0HOi7x1r_qSRVcCs"></div> -->
+            <div class="g-recaptcha" data-sitekey="6Le-UDIrAAAAAIM4PgwC78XkuepO-nmPU-4BuIkm"></div>
+
+          
             <button onclick="register()" class="register">Register</button>
             <button onclick="login()" class="login">Login</button>
             <p id="auth-error"></p>
