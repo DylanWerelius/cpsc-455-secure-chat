@@ -11,7 +11,7 @@ let socket;
 console.log("RSA key Generated successfully");
 
 // Connect to the new websocket
-const PROJECT = process.env.PROJECT_DOMAIN || "secure‑chat‑evergarden"; 
+const PROJECT = "secure-chat-evergarden"; 
 const ws = new WebSocket(`wss://${PROJECT}.glitch.me`);
 window.socket = ws;
 //ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
