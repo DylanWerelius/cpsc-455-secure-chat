@@ -14,14 +14,12 @@ import fetch from "node-fetch";
 import { saveMessage, createUser, findUserByUsername, getDatabase, getAllUsers } from "./database.js";
 
 dotenv.config();
-const fetch = require("node-fetch");
 const SECRET_KEY = process.env.SECRET_KEY;
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
 const messageRateLimit = new Map();
 const onlineUsers = new Map();
 const loginAttempts = new Map();
 const userSPKIs = new Map();
-
 
 const MAX_ATTEMPTS = 5;
 const LOCK_TIME_MS = 60000;
@@ -98,9 +96,7 @@ wss.on("connection", function connection(ws) {
         const data = JSON.parse(message);
 
         if (data.type === "register") {
-            const { recaptchaToken, username, password } = data;
-            const isHuman = await verifyCaptcha(recaptchaToken);
-            //const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            const isHuman = await verifyRecaptcha(data.recaptchaToken);
             if (!isHuman) {
                 ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
                 return;
@@ -159,9 +155,7 @@ wss.on("connection", function connection(ws) {
             //updateOnlineUsers();
             await updateUserLists();
         } else if (data.type === "login") {
-            const { recaptchaToken, username, password } = data;
-            const isHuman = await verifyCaptcha(recaptchaToken);
-            //const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            const isHuman = await verifyRecaptcha(data.recaptchaToken);
             if (!isHuman) {
                 ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
                 return;

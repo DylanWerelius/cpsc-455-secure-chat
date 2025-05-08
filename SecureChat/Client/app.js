@@ -7,7 +7,6 @@ let publicKeys = {};
 let reconnectInterval = 1000; // start with 1s
 let socket;
 function connectWebSocket() {
-    
 
     console.log("RSA key Generated successfully");
     const ws = new WebSocket("wss://securechat.ddns.net:443");
@@ -17,14 +16,16 @@ function connectWebSocket() {
 
 
     ws.onopen = () => {
-        console.log("Connected to the server");
+        console.log("✅ Connected to WebSocket server.");
         reconnectInterval = 1000;
-      };      
-
+        updateConnectionStatus(true);
+    };
+    
     ws.onclose = () => {
-        console.warn("Disconnected. Reconnecting in", reconnectInterval / 1000, "s");
+        console.warn("⚠️ Disconnected. Reconnecting...");
+        updateConnectionStatus(false);
         setTimeout(connectWebSocket, reconnectInterval);
-        reconnectInterval = Math.min(reconnectInterval * 2, 30000); // cap at 30s
+        reconnectInterval = Math.min(reconnectInterval * 2, 30000);
     };
 
     ws.onerror = (e) => console.error("WebSocket error:", e);
@@ -36,10 +37,20 @@ function connectWebSocket() {
 function updateConnectionStatus(connected) {
     const banner = document.getElementById("connection-status");
     if (!banner) return;
-    banner.textContent = connected ? "Connected" : "Reconnecting...";
-    banner.style.backgroundColor = connected ? "#4caf50" : "#f44336";
-    banner.style.display = "block";
+
+    if (connected) {
+        banner.textContent = "Connected";
+        banner.style.backgroundColor = "#4caf50";
+        setTimeout(() => {
+            banner.style.display = "none";
+        }, 3000);
+    } else {
+        banner.textContent = "Reconnecting...";
+        banner.style.backgroundColor = "#f44336";
+        banner.style.display = "block";
+    }
 }
+
 
 connectWebSocket();
 (async () => {
@@ -74,37 +85,8 @@ connectWebSocket();
             }));
         } else if (data.type === "message") {
             console.log("Message read from correct function");
-            try {
-                const encryptedData = Uint8Array.from(atob(data.encrypted), c => c.charCodeAt(0));
-                const iv = Uint8Array.from(atob(data.iv), c => c.charCodeAt(0));
-                const encryptedKey = Uint8Array.from(atob(data.key), c => c.charCodeAt(0));
+            addMessage(data.message);
 
-                const rawKey = await window.crypto.subtle.decrypt(
-                    { name: "RSA-OAEP" },
-                    rsaKeyPair.privateKey,
-                    encryptedKey
-                );
-
-                const aesKey = await window.crypto.subtle.importKey(
-                    "raw",
-                    rawKey,
-                    "AES-GCM",
-                    false,
-                    ["decrypt"]
-                );
-
-                const decryptedMessage = await window.crypto.subtle.decrypt(
-                    { name: "AES-GCM", iv },
-                    aesKey,
-                    encryptedData
-                );
-
-                const decoded = new TextDecoder().decode(decryptedMessage);
-                const sender = data.sender ? data.sender : "(unknown)";
-                addMessage(`${sender}: ${decoded}`);
-            } catch (err) {
-                console.error("❌ Failed to decrypt message:", err);
-            }
         } else if (data.type === "file") {
             if (data.sender === "You") return;
             
@@ -170,7 +152,6 @@ connectWebSocket();
                 ["encrypt"]
             );
         } else if (data.type === "success") {
-            alert(data.message);
             const username = document.getElementById("username").value;
             const password = document.getElementById("password").value;
             if (!username || !password) return showError("Please enter a username and password.");
@@ -256,9 +237,6 @@ connectWebSocket();
 
 // register a new user (victoria)
 function register() {
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-        return showError("WebSocket not ready. Please wait...");
-    }
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     if (!username || !password) return showError("Please enter a username and password.");
@@ -277,9 +255,6 @@ function register() {
 
 // user authentication (login) (victoria)
 function login() {
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-        return showError("WebSocket not ready. Please wait...");
-    }
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     if (!username || !password) return showError("Please enter a username and password.");
@@ -296,63 +271,22 @@ function login() {
     socket.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
 }
 
-async function sendMessage() {
+function sendMessage() {
     const messageInput = document.getElementById("message");
     const recipient = document.getElementById("recipient").value;
     const message = messageInput.value.trim();
 
-    if (!message || !recipient) return;
-
-    const publicKey = publicKeys[recipient];
-    if (!publicKey) {
-        alert(`No public key found for recipient: ${recipient}`);
-        return;
-    }
-
-    const encoder = new TextEncoder();
-    const encodedMessage = encoder.encode(message);
-
-    const aesKey = await window.crypto.subtle.generateKey(
-        { name: "AES-GCM", length: 256 },
-        true,
-        ["encrypt", "decrypt"]
-    );
-
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-
-    const encrypted = await window.crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
-        aesKey,
-        encodedMessage
-    );
-
-    const rawKey = await window.crypto.subtle.exportKey("raw", aesKey);
-    const wrappedKey = await window.crypto.subtle.encrypt(
-        { name: "RSA-OAEP" },
-        publicKey,
-        rawKey
-    );
-
-    const payload = {
-        type: "chat",
-        token,
-        sender: username,
-        recipient,
-        encrypted: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
-        key: btoa(String.fromCharCode(...new Uint8Array(wrappedKey))),
-        iv: btoa(String.fromCharCode(...iv))
-    };
-
-    if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(payload));
-        messageInput.value = "";
-    } else {
-        alert("WebSocket not connected.");
+    // This is where the message gets sent
+    if (message) {
+        socket.send(JSON.stringify({
+            type: "message",
+            token,
+            recipient,
+            data: message
+        }));
+        document.getElementById("message").value = "";
     }
 }
-document.getElementById("registerBtn").onclick = register;
-document.getElementById("loginBtn").onclick = login;
-document.getElementById("sendBtn").onclick = sendMessage;
 // select emoji 
 function toggleEmojiPicker() {
     const picker = document.getElementById("emojiPicker");
