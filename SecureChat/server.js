@@ -14,14 +14,12 @@ import fetch from "node-fetch";
 import { saveMessage, createUser, findUserByUsername, getDatabase, getAllUsers } from "./database.js";
 
 dotenv.config();
-const fetch = require("node-fetch");
 const SECRET_KEY = process.env.SECRET_KEY;
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
 const messageRateLimit = new Map();
 const onlineUsers = new Map();
 const loginAttempts = new Map();
 const userSPKIs = new Map();
-
 
 const MAX_ATTEMPTS = 5;
 const LOCK_TIME_MS = 60000;
