@@ -6,14 +6,14 @@ let offlineUsers = [];
 let publicKeys = {};
 let reconnectInterval = 1000; // start with 1s
 let socket;
-function connectWebSocket() {
 
-    console.log("RSA key Generated successfully");
+
+console.log("RSA key Generated successfully");
     const ws = new WebSocket("wss://securechat.ddns.net:443");
 
     //ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
     window.socket = ws;
-
+function connectWebSocket() {
 
     ws.onopen = () => {
         console.log("✅ Connected to WebSocket server.");
@@ -50,7 +50,6 @@ function updateConnectionStatus(connected) {
         banner.style.display = "block";
     }
 }
-
 
 connectWebSocket();
 (async () => {
@@ -124,6 +123,7 @@ connectWebSocket();
             document.getElementById("chat-log").appendChild(link);
         } else if (data.type === "private_message") {
             addMessage(`[Private] ${data.sender}: ${data.message}`);
+            console.log("📩 Decrypted:", decryptedMessage);
         } else if (data.type === "online_users") {
             handleUserUpdate(data.users);
         } else if (data.type === "error") {
@@ -155,7 +155,7 @@ connectWebSocket();
             const username = document.getElementById("username").value;
             const password = document.getElementById("password").value;
             if (!username || !password) return showError("Please enter a username and password.");
-            socket.send(JSON.stringify({ type: "login-no-captcha", username, password }));
+            //socket.send(JSON.stringify({ type: "login-no-captcha", username, password }));
         }
     };
 
@@ -251,7 +251,7 @@ function register() {
     // }
   
     // socket.send(JSON.stringify({ type: "register", username, password, recaptchaToken: captchaResponse }));
-    socket.send(JSON.stringify({ type: "register", username, password }));
+    ws.send(JSON.stringify({ type: "register", username, password }));
 }
 
 // user authentication (login) (victoria)
@@ -270,7 +270,7 @@ function login() {
     // }
     
     // socket.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
-    socket.send(JSON.stringify({ type: "login", username, password }));
+    ws.send(JSON.stringify({ type: "login", username, password }));
 }
 
 function sendMessage() {
@@ -280,7 +280,7 @@ function sendMessage() {
 
     // This is where the message gets sent
     if (message) {
-        socket.send(JSON.stringify({
+        ws.send(JSON.stringify({
             type: "message",
             token,
             recipient,
@@ -288,6 +288,7 @@ function sendMessage() {
         }));
         document.getElementById("message").value = "";
     }
+    console.log("🔐 Sending encrypted:", message);
 }
 // select emoji 
 function toggleEmojiPicker() {
