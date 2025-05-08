@@ -264,15 +264,16 @@ function register() {
     if (!username || !password) return showError("Please enter a username and password.");
   
     // Add Captcha Check
-    console.log("Validating Captcha");
-    const captchaResponse = grecaptcha.getResponse();
+    // console.log("Validating Captcha");
+    // const captchaResponse = grecaptcha.getResponse();
     
-    if (!captchaResponse) {
-        showError("Please complete the CAPTCHA");
-        return;
-    }
+    // if (!captchaResponse) {
+    //     showError("Please complete the CAPTCHA");
+    //     return;
+    // }
   
-    socket.send(JSON.stringify({ type: "register", username, password, recaptchaToken: captchaResponse }));
+    // socket.send(JSON.stringify({ type: "register", username, password, recaptchaToken: captchaResponse }));
+    socket.send(JSON.stringify({ type: "register", username, password }));
 }
 
 // user authentication (login) (victoria)
@@ -285,15 +286,16 @@ function login() {
     if (!username || !password) return showError("Please enter a username and password.");
   
     // Add Captcha Check
-    console.log("Validating Captcha");
-    const captchaResponse = grecaptcha.getResponse();
+    // console.log("Validating Captcha");
+    // const captchaResponse = grecaptcha.getResponse();
     
-    if (!captchaResponse) {
-        showError("Please complete the CAPTCHA");
-        return;
-    }
+    // if (!captchaResponse) {
+    //     showError("Please complete the CAPTCHA");
+    //     return;
+    // }
     
-    socket.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
+    // socket.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
+    socket.send(JSON.stringify({ type: "login", username, password }));
 }
 
 async function sendMessage() {

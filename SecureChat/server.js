@@ -99,12 +99,12 @@ wss.on("connection", function connection(ws) {
 
         if (data.type === "register") {
             const { recaptchaToken, username, password } = data;
-            const isHuman = await verifyCaptcha(recaptchaToken);
-            //const isHuman = await verifyRecaptcha(data.recaptchaToken);
-            if (!isHuman) {
-                ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
-                return;
-            }
+            // const isHuman = await verifyCaptcha(recaptchaToken);
+            // //const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            // if (!isHuman) {
+            //     ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
+            //     return;
+            // }
 
             const existingUser = await findUserByUsername(data.username);
             if (existingUser) {
@@ -160,12 +160,12 @@ wss.on("connection", function connection(ws) {
             await updateUserLists();
         } else if (data.type === "login") {
             const { recaptchaToken, username, password } = data;
-            const isHuman = await verifyCaptcha(recaptchaToken);
-            //const isHuman = await verifyRecaptcha(data.recaptchaToken);
-            if (!isHuman) {
-                ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
-                return;
-            }
+            // const isHuman = await verifyCaptcha(recaptchaToken);
+            // //const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            // if (!isHuman) {
+            //     ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
+            //     return;
+            // }
             
             const now = Date.now();
             const attempts = loginAttempts.get(data.username) || { count: 0, lastAttempt: 0 };
