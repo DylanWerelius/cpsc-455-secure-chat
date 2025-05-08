@@ -1,4 +1,4 @@
-// In simple terms, this is the Node.js code
+// In simple terms, this is the server code
 // Written by Dylan Werelius & Victoria Guzman
 // Video Reference: https://youtu.be/TItbp7c9MNQ
 
@@ -10,10 +10,12 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import https from "https";
+import fetch from "node-fetch";
 import { saveMessage, createUser, findUserByUsername, getDatabase, getAllUsers } from "./database.js";
 
 dotenv.config();
 const SECRET_KEY = process.env.SECRET_KEY;
+const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
 const messageRateLimit = new Map();
 const onlineUsers = new Map();
 const loginAttempts = new Map();
@@ -28,8 +30,17 @@ if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 (async () => {
     await getDatabase();
     console.log("SQLite initialized");
-  })();
+})();
   
+async function verifyRecaptcha(token) {
+    const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `secret=${RECAPTCHA_SECRET}&response=${token}`
+    });
+    const data = await response.json();
+    return data.success;
+}
 
 function logSecurityEvent(username, reason) {
   const logLine = `${new Date().toISOString()} - ${username}: ${reason}\n`;
@@ -85,6 +96,12 @@ wss.on("connection", function connection(ws) {
         const data = JSON.parse(message);
 
         if (data.type === "register") {
+            const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            if (!isHuman) {
+                ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
+                return;
+            }
+
             const existingUser = await findUserByUsername(data.username);
             if (existingUser) {
                 ws.send(JSON.stringify({ type: "error", message: "Username already taken." }));
@@ -94,7 +111,56 @@ wss.on("connection", function connection(ws) {
             await createUser(data.username, hashedPassword);
             ws.send(JSON.stringify({ type: "success", message: "User registered." }));
 
+        } else if (data.type === "login-no-captcha"){
+            const now = Date.now();
+            const attempts = loginAttempts.get(data.username) || { count: 0, lastAttempt: 0 };
+            if (attempts.count >= MAX_ATTEMPTS && (now - attempts.lastAttempt < LOCK_TIME_MS)) {
+                logSecurityEvent(data.username, "Account locked due to too many failed attempts");
+                ws.send(JSON.stringify({ type: "error", message: "Too many failed login attempts. Please wait before trying again." }));
+                return;
+            }
+
+            const userRecord = await findUserByUsername(data.username);
+            if (!userRecord) {
+                logSecurityEvent(data.username, "User not found");
+                ws.send(JSON.stringify({ type: "error", message: "User not found." }));
+                return;
+            }
+
+            const valid = await bcrypt.compare(data.password, userRecord.password);
+            if (!valid) {
+                attempts.count++;
+                attempts.lastAttempt = now;
+                loginAttempts.set(data.username, attempts);
+                logSecurityEvent(data.username, "Invalid password");
+                ws.send(JSON.stringify({ type: "error", message: "Invalid credentials." }));
+                return;
+            }
+
+            loginAttempts.delete(data.username);
+            const token = jwt.sign({ username: data.username }, SECRET_KEY, { expiresIn: "1h" });
+            ws.send(JSON.stringify({ type: "auth", token, username: data.username }));
+
+            // send all user public keys
+            for (const [otherUser, keyBytes] of userSPKIs.entries()) {
+                ws.send(JSON.stringify({
+                    type: "public_key",
+                    username: otherUser,
+                    key: keyBytes
+                }));
+            }
+
+            onlineUsers.set(data.username, ws);
+            broadcastMessage(`${data.username} has joined the chat.`, data.username);
+            //updateOnlineUsers();
+            await updateUserLists();
         } else if (data.type === "login") {
+            const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            if (!isHuman) {
+                ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
+                return;
+            }
+            
             const now = Date.now();
             const attempts = loginAttempts.get(data.username) || { count: 0, lastAttempt: 0 };
             if (attempts.count >= MAX_ATTEMPTS && (now - attempts.lastAttempt < LOCK_TIME_MS)) {
