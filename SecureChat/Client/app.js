@@ -18,7 +18,7 @@ let publicKeys = {};
     );
 
     console.log("RSA key Generated successfully");
-    const ws = new WebSocket("wss://securechat.ddns.net");
+    const ws = new WebSocket("wss://securechat.ddns.net:443");
     //ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
     window.socket = ws;
 
@@ -110,6 +110,11 @@ let publicKeys = {};
                 true,
                 ["encrypt"]
             );
+        } else if (data.type === "success") {
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            if (!username || !password) return showError("Please enter a username and password.");
+            socket.send(JSON.stringify({ type: "login-no-captcha", username, password }));
         }
     };
 
@@ -194,7 +199,17 @@ function register() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     if (!username || !password) return showError("Please enter a username and password.");
-    socket.send(JSON.stringify({ type: "register", username, password }));
+  
+    // Add Captcha Check
+    console.log("Validating Captcha");
+    const captchaResponse = grecaptcha.getResponse();
+    
+    if (!captchaResponse) {
+        showError("Please complete the CAPTCHA");
+        return;
+    }
+  
+    socket.send(JSON.stringify({ type: "register", username, password, recaptchaToken: captchaResponse }));
 }
 
 // user authentication (login) (victoria)
@@ -202,7 +217,17 @@ function login() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     if (!username || !password) return showError("Please enter a username and password.");
-    socket.send(JSON.stringify({ type: "login", username, password }));
+  
+    // Add Captcha Check
+    console.log("Validating Captcha");
+    const captchaResponse = grecaptcha.getResponse();
+    
+    if (!captchaResponse) {
+        showError("Please complete the CAPTCHA");
+        return;
+    }
+    
+    socket.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
 }
 
 function sendMessage() {
