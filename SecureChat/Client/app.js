@@ -4,7 +4,54 @@ let rsaKeyPair;
 let onlineUsers = [];
 let offlineUsers = [];
 let publicKeys = {};
+let reconnectInterval = 1000; // start with 1s
+let socket;
 
+
+console.log("RSA key Generated successfully");
+    const ws = new WebSocket("wss://securechat.ddns.net:443");
+
+    //ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
+    window.socket = ws;
+function connectWebSocket() {
+
+    ws.onopen = () => {
+        console.log("✅ Connected to WebSocket server.");
+        reconnectInterval = 1000;
+        updateConnectionStatus(true);
+    };
+    
+    ws.onclose = () => {
+        console.warn("⚠️ Disconnected. Reconnecting...");
+        updateConnectionStatus(false);
+        setTimeout(connectWebSocket, reconnectInterval);
+        reconnectInterval = Math.min(reconnectInterval * 2, 30000);
+    };
+
+    ws.onerror = (e) => console.error("WebSocket error:", e);
+
+    ws.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+    };
+}
+function updateConnectionStatus(connected) {
+    const banner = document.getElementById("connection-status");
+    if (!banner) return;
+
+    if (connected) {
+        banner.textContent = "Connected";
+        banner.style.backgroundColor = "#4caf50";
+        setTimeout(() => {
+            banner.style.display = "none";
+        }, 3000);
+    } else {
+        banner.textContent = "Reconnecting...";
+        banner.style.backgroundColor = "#f44336";
+        banner.style.display = "block";
+    }
+}
+
+connectWebSocket();
 (async () => {
     rsaKeyPair = await window.crypto.subtle.generateKey(
         {
@@ -16,13 +63,6 @@ let publicKeys = {};
         true,
         ["encrypt", "decrypt"]
     );
-
-    console.log("RSA key Generated successfully");
-    const ws = new WebSocket("wss://securechat.ddns.net:443");
-    //ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
-    window.socket = ws;
-
-    ws.onopen = () => console.log("Connected to the server");
 
     // This function is used to detect messages being received
     ws.onmessage = async (event) => {
@@ -83,6 +123,7 @@ let publicKeys = {};
             document.getElementById("chat-log").appendChild(link);
         } else if (data.type === "private_message") {
             addMessage(`[Private] ${data.sender}: ${data.message}`);
+            console.log("📩 Decrypted:", decryptedMessage);
         } else if (data.type === "online_users") {
             handleUserUpdate(data.users);
         } else if (data.type === "error") {
@@ -201,15 +242,16 @@ function register() {
     if (!username || !password) return showError("Please enter a username and password.");
   
     // Add Captcha Check
-    console.log("Validating Captcha");
-    const captchaResponse = grecaptcha.getResponse();
+    // console.log("Validating Captcha");
+    // const captchaResponse = grecaptcha.getResponse();
     
-    if (!captchaResponse) {
-        showError("Please complete the CAPTCHA");
-        return;
-    }
+    // if (!captchaResponse) {
+    //     showError("Please complete the CAPTCHA");
+    //     return;
+    // }
   
-    socket.send(JSON.stringify({ type: "register", username, password, recaptchaToken: captchaResponse }));
+    // socket.send(JSON.stringify({ type: "register", username, password, recaptchaToken: captchaResponse }));
+    ws.send(JSON.stringify({ type: "register", username, password }));
 }
 
 // user authentication (login) (victoria)
@@ -219,15 +261,16 @@ function login() {
     if (!username || !password) return showError("Please enter a username and password.");
   
     // Add Captcha Check
-    console.log("Validating Captcha");
-    const captchaResponse = grecaptcha.getResponse();
+    // console.log("Validating Captcha");
+    // const captchaResponse = grecaptcha.getResponse();
     
-    if (!captchaResponse) {
-        showError("Please complete the CAPTCHA");
-        return;
-    }
+    // if (!captchaResponse) {
+    //     showError("Please complete the CAPTCHA");
+    //     return;
+    // }
     
-    socket.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
+    // socket.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
+    ws.send(JSON.stringify({ type: "login", username, password }));
 }
 
 function sendMessage() {
@@ -237,7 +280,7 @@ function sendMessage() {
 
     // This is where the message gets sent
     if (message) {
-        socket.send(JSON.stringify({
+        ws.send(JSON.stringify({
             type: "message",
             token,
             recipient,
@@ -245,6 +288,7 @@ function sendMessage() {
         }));
         document.getElementById("message").value = "";
     }
+    console.log("🔐 Sending encrypted:", message);
 }
 // select emoji 
 function toggleEmojiPicker() {
