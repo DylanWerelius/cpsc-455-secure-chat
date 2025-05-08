@@ -293,7 +293,7 @@ function login() {
         return;
     }
     
-    window.socket.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
+    socket.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
 }
 
 async function sendMessage() {
