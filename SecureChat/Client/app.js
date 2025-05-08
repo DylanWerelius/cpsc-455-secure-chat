@@ -155,7 +155,7 @@ connectWebSocket();
             const username = document.getElementById("username").value;
             const password = document.getElementById("password").value;
             if (!username || !password) return showError("Please enter a username and password.");
-            //socket.send(JSON.stringify({ type: "login-no-captcha", username, password }));
+            socket.send(JSON.stringify({ type: "login-no-captcha", username, password }));
         }
     };
 
