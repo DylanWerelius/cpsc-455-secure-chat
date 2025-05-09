@@ -5,7 +5,7 @@ https://secure-chat-evergarden.glitch.me
 Instructions for running:
 
 1. navigate to the SecureChat directory with "cd SecureChat"
-2. a. type "npm i ws bcryptjs jsonwebtoken dotenv sqlite3 sqlite express"
+2. a. type "npm i ws bcryptjs jsonwebtoken dotenv sqlite3 sqlite express node-fetch@2"
    b. type "npm install electron --save-dev"
    c. type "npm install electron-packager --save-dev"
 3. create a file called .env at the in the SecureChat folder
