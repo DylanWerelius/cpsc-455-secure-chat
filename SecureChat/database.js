@@ -1,16 +1,16 @@
 //Created by Victoria Guzman
 // database.js (SQLite version)
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
-import path from 'path';
-import fs from 'fs';
+const sqlite3 = require('sqlite3').verbose();
+const { open } = require('sqlite');
+const path = require('path');
+const fs = require('fs');
 
 const dbFolder = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(dbFolder)) fs.mkdirSync(dbFolder, { recursive: true });
 
 let db;
 
-export async function getDatabase() {
+async function getDatabase() {
   if (!db) {
     const dbFolder = path.join(process.cwd(), 'logs');
     if (!fs.existsSync(dbFolder)) fs.mkdirSync(dbFolder, { recursive: true });
@@ -43,7 +43,7 @@ export async function getDatabase() {
   return db;
 }
 
-export async function saveMessage(sender, recipient, message) {
+async function saveMessage(sender, recipient, message) {
   const db = await getDatabase();
   await db.run(
     `INSERT INTO messages (sender, recipient, message) VALUES (?, ?, ?)`,
@@ -53,7 +53,7 @@ export async function saveMessage(sender, recipient, message) {
   );
 }
 
-export async function getMessagesBetween(sender, recipient) {
+async function getMessagesBetween(sender, recipient) {
   const db = await getDatabase();
   return db.all(
     `SELECT * FROM messages WHERE (sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?) ORDER BY timestamp ASC`,
@@ -61,7 +61,7 @@ export async function getMessagesBetween(sender, recipient) {
   );
 }
 
-export async function getRecentMessages(limit = 100) {
+async function getRecentMessages(limit = 100) {
   const db = await getDatabase();
   return db.all(
     `SELECT * FROM messages ORDER BY timestamp DESC LIMIT ?`,
@@ -69,7 +69,7 @@ export async function getRecentMessages(limit = 100) {
   );
 }
 
-export async function createUser(username, hashedPassword) {
+async function createUser(username, hashedPassword) {
   const db = await getDatabase();
   await db.run(
     `INSERT INTO users (username, password) VALUES (?, ?)`,
@@ -78,7 +78,7 @@ export async function createUser(username, hashedPassword) {
   );
 }
 
-export async function findUserByUsername(username) {
+async function findUserByUsername(username) {
   const db = await getDatabase();
   return db.get(
     `SELECT * FROM users WHERE username = ?`,
@@ -86,8 +86,18 @@ export async function findUserByUsername(username) {
   );
 } 
 
-export async function getAllUsers() {
+async function getAllUsers() {
   const db = await getDatabase();
   const rows = await db.all(`SELECT username FROM users`);
   return rows.map(r => r.username);
 }
+
+module.exports = {
+  getDatabase,
+  saveMessage,
+  getMessagesBetween,
+  getRecentMessages,
+  createUser,
+  findUserByUsername,
+  getAllUsers
+};

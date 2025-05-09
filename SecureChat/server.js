@@ -3,19 +3,27 @@
 // Video Reference: https://youtu.be/TItbp7c9MNQ
 
 // Updated server.js with SQLite user auth
-import WebSocket, { WebSocketServer } from "ws";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import dotenv from "dotenv";
-import fs from "fs";
-import path from "path";
-import https from "https";
-import fetch from "node-fetch";
-import { saveMessage, createUser, findUserByUsername, getDatabase, getAllUsers } from "./database.js";
+require("dotenv").config();
+const express   = require("express");
+const http      = require("http");
+const path      = require("path");
+const fs        = require("fs");
+const jwt       = require("jsonwebtoken");
+const bcrypt    = require("bcryptjs");
+const { WebSocketServer } = require("ws");
+const {
+  getDatabase,
+  saveMessage,
+  createUser,
+  findUserByUsername,
+  getAllUsers
+} = require("./database.js");
+const { fileURLToPath } = require("url");
+const { dirname, join } = require("path");
 
-dotenv.config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
+
 const messageRateLimit = new Map();
 const onlineUsers = new Map();
 const loginAttempts = new Map();
@@ -26,6 +34,14 @@ const LOCK_TIME_MS = 60000;
 const securityLogPath = path.join("logs", "security.txt");
 const logDir = path.join(process.cwd(), "logs");
 if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+
+// Create the server and web socket server
+const app = express();
+// Tell the app to find the Client in the Client Directory
+app.use(express.static(path.join(__dirname, "Client")));
+
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
 
 (async () => {
     await getDatabase();
@@ -49,22 +65,9 @@ function logSecurityEvent(username, reason) {
   });
 }
 
-//const wss = new WebSocketServer({ host: '0.0.0.0', port: 3000 });//lochost testing
-
-// TLS + WSS on port 443
-const server = https.createServer({
-    cert: fs.readFileSync("/etc/letsencrypt/live/securechat.ddns.net/fullchain.pem"),
-    key: fs.readFileSync("/etc/letsencrypt/live/securechat.ddns.net/privkey.pem"),
-});
-const wss = new WebSocketServer({ server });
-
 function heartbeat() {
     this.isAlive = true;
 }
-
-server.listen(443, () => {
-    console.log("SecureChat is listening on https://securechat.ddns.net and wss://securechat.ddns.net");
-});
 
 async function updateUserLists() {
     const registered = await getAllUsers();
@@ -96,13 +99,11 @@ wss.on("connection", function connection(ws) {
         const data = JSON.parse(message);
 
         if (data.type === "register") {
-            const { recaptchaToken, username, password } = data;
-            // const isHuman = await verifyCaptcha(recaptchaToken);
-            // //const isHuman = await verifyRecaptcha(data.recaptchaToken);
-            // if (!isHuman) {
-            //     ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
-            //     return;
-            // }
+            //const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            //if (!isHuman) {
+                //ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
+                //return;
+            //}
 
             const existingUser = await findUserByUsername(data.username);
             if (existingUser) {
@@ -157,13 +158,11 @@ wss.on("connection", function connection(ws) {
             //updateOnlineUsers();
             await updateUserLists();
         } else if (data.type === "login") {
-            const { recaptchaToken, username, password } = data;
-            // const isHuman = await verifyCaptcha(recaptchaToken);
-            // //const isHuman = await verifyRecaptcha(data.recaptchaToken);
-            // if (!isHuman) {
-            //     ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
-            //     return;
-            // }
+            //const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            //if (!isHuman) {
+                //ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
+                //return;
+            //}
             
             const now = Date.now();
             const attempts = loginAttempts.get(data.username) || { count: 0, lastAttempt: 0 };
@@ -348,4 +347,7 @@ setInterval(() => {
     });
 }, 10000);
 
-console.log("WebSocket server is running on ws://0.0.0.0:80");
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Listening on port ${PORT}`);
+});
