@@ -110,8 +110,8 @@ wss.on("connection", function connection(ws) {
         const data = JSON.parse(message);
 
         if (data.type === "register") {
-            //const isHuman = await verifyRecaptcha(data.recaptchaToken);
-            const isHuman = await verifyLocalRecaptcha(data.recaptchaToken);
+            const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            //const isHuman = await verifyLocalRecaptcha(data.recaptchaToken);
             if (!isHuman) {
                 ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
                 return;
@@ -170,8 +170,8 @@ wss.on("connection", function connection(ws) {
             //updateOnlineUsers();
             await updateUserLists();
         } else if (data.type === "login") {
-            //const isHuman = await verifyRecaptcha(data.recaptchaToken);
-            const isHuman = await verifyLocalRecaptcha(data.recaptchaToken);
+            const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            //const isHuman = await verifyLocalRecaptcha(data.recaptchaToken);
             if (!isHuman) {
                 ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
                 return;

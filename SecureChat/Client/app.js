@@ -12,8 +12,8 @@ console.log("RSA key Generated successfully");
 
 // Connect to the new websocket
 const PROJECT = "secure-chat-evergarden"; 
-//const ws = new WebSocket(`wss://${PROJECT}.glitch.me`);
-ws = new WebSocket("ws://127.0.0.1:3000"); // localhost testing
+const ws = new WebSocket(`wss://${PROJECT}.glitch.me`);
+//ws = new WebSocket("ws://127.0.0.1:3000"); // localhost testing
 window.socket = ws;
 
 function connectWebSocket() {
