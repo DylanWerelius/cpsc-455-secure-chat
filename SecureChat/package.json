@@ -8,7 +8,6 @@
     "start-app": "electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "type": "module",
   "keywords": [],
   "author": "Dylan Werelius & Victoria Guzman",
   "license": "ISC",
