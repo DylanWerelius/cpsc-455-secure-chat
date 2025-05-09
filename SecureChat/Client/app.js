@@ -13,7 +13,7 @@ console.log("RSA key Generated successfully");
 // Connect to the new websocket
 const PROJECT = "secure-chat-evergarden"; 
 const ws = new WebSocket(`wss://${PROJECT}.glitch.me`);
-//ws = new WebSocket("ws://192.168.71.194:3000"); // localhost testing
+//ws = new WebSocket("ws://127.0.0.1:3000"); // localhost testing
 window.socket = ws;
 
 function connectWebSocket() {
@@ -245,16 +245,16 @@ function register() {
     if (!username || !password) return showError("Please enter a username and password.");
   
     // Add Captcha Check
-    // console.log("Validating Captcha");
-    // const captchaResponse = grecaptcha.getResponse();
+    console.log("Validating Captcha");
+    const captchaResponse = grecaptcha.getResponse();
     
-    // if (!captchaResponse) {
-    //     showError("Please complete the CAPTCHA");
-    //     return;
-    // }
+    if (!captchaResponse) {
+        showError("Please complete the CAPTCHA");
+        return;
+    }
   
-    // socket.send(JSON.stringify({ type: "register", username, password, recaptchaToken: captchaResponse }));
-    ws.send(JSON.stringify({ type: "register", username, password }));
+    ws.send(JSON.stringify({ type: "register", username, password, recaptchaToken: captchaResponse }));
+    //ws.send(JSON.stringify({ type: "register", username, password }));
 }
 
 // user authentication (login) (victoria)
@@ -264,16 +264,16 @@ function login() {
     if (!username || !password) return showError("Please enter a username and password.");
   
     // Add Captcha Check
-    // console.log("Validating Captcha");
-    // const captchaResponse = grecaptcha.getResponse();
+    console.log("Validating Captcha");
+    const captchaResponse = grecaptcha.getResponse();
     
-    // if (!captchaResponse) {
-    //     showError("Please complete the CAPTCHA");
-    //     return;
-    // }
+    if (!captchaResponse) {
+        showError("Please complete the CAPTCHA");
+        return;
+    }
     
-    // socket.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
-    ws.send(JSON.stringify({ type: "login", username, password }));
+    ws.send(JSON.stringify({ type: "login", username, password, recaptchaToken: captchaResponse }));
+    //ws.send(JSON.stringify({ type: "login", username, password }));
 }
 
 function sendMessage() {

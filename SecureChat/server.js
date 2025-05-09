@@ -23,6 +23,7 @@ const { dirname, join } = require("path");
 
 const SECRET_KEY = process.env.SECRET_KEY;
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
+const LOCAL_CAPTCHA_SECRET = process.env.LOCAL_RECAPTCHA;
 
 const messageRateLimit = new Map();
 const onlineUsers = new Map();
@@ -53,6 +54,16 @@ async function verifyRecaptcha(token) {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `secret=${RECAPTCHA_SECRET}&response=${token}`
+    });
+    const data = await response.json();
+    return data.success;
+}
+
+async function verifyLocalRecaptcha(token) {
+    const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `secret=${LOCAL_CAPTCHA_SECRET}&response=${token}`
     });
     const data = await response.json();
     return data.success;
@@ -99,11 +110,12 @@ wss.on("connection", function connection(ws) {
         const data = JSON.parse(message);
 
         if (data.type === "register") {
-            //const isHuman = await verifyRecaptcha(data.recaptchaToken);
-            //if (!isHuman) {
-                //ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
-                //return;
-            //}
+            const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            //const isHuman = await verifyLocalRecaptcha(data.recaptchaToken);
+            if (!isHuman) {
+                ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
+                return;
+            }
 
             const existingUser = await findUserByUsername(data.username);
             if (existingUser) {
@@ -158,11 +170,12 @@ wss.on("connection", function connection(ws) {
             //updateOnlineUsers();
             await updateUserLists();
         } else if (data.type === "login") {
-            //const isHuman = await verifyRecaptcha(data.recaptchaToken);
-            //if (!isHuman) {
-                //ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
-                //return;
-            //}
+            const isHuman = await verifyRecaptcha(data.recaptchaToken);
+            //const isHuman = await verifyLocalRecaptcha(data.recaptchaToken);
+            if (!isHuman) {
+                ws.send(JSON.stringify({ type: "error", message: "CAPTCHA verification failed." }));
+                return;
+            }
             
             const now = Date.now();
             const attempts = loginAttempts.get(data.username) || { count: 0, lastAttempt: 0 };
