@@ -10,7 +10,8 @@ const path      = require("path");
 const fs        = require("fs");
 const jwt       = require("jsonwebtoken");
 const bcrypt    = require("bcryptjs");
-const { WebSocketServer } = require("ws");
+const fetch     = require("node-fetch");
+const { WebSocket, WebSocketServer } = require("ws");
 const {
   getDatabase,
   saveMessage,

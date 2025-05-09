@@ -8,6 +8,7 @@
     "start-app": "electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "type": "module",
   "keywords": [],
   "author": "Dylan Werelius & Victoria Guzman",
   "license": "ISC",
@@ -18,7 +19,8 @@
     "jsonwebtoken": "8.5.1",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
-    "ws": "^8.18.2"
+    "ws": "^8.18.2",
+    "node-fetch": "2.6.7"
   },
   "devDependencies": {
     "electron": "^35.0.3",
