@@ -80,19 +80,19 @@ connectWebSocket();
 
             // send your public key to the server so it can relay to everyone else
             const spki = await crypto.subtle.exportKey("spki", rsaKeyPair.publicKey);
-            socket.send(JSON.stringify({
+            ws.send(JSON.stringify({
                 type: "public_key",
                 username,
                 key: Array.from(new Uint8Array(spki))
             }));
         } else if (data.type === "message") {
-            console.log("Message read from correct function");
+            //console.log("Message read from correct function");
             addMessage(data.message);
 
         } else if (data.type === "file") {
             if (data.sender === "You") return;
             
-            console.log("Receiving a file");
+            //console.log("Receiving a file");
             const encryptedAESKey = new Uint8Array(data.aesKey);
             const iv = new Uint8Array(data.iv);
             const encryptedData = Uint8Array.from(atob(data.encrypted), c => c.charCodeAt(0));
@@ -126,7 +126,7 @@ connectWebSocket();
             document.getElementById("chat-log").appendChild(link);
         } else if (data.type === "private_message") {
             addMessage(`[Private] ${data.sender}: ${data.message}`);
-            console.log("📩 Decrypted:", decryptedMessage);
+            //console.log("📩 Decrypted:", decryptedMessage);
         } else if (data.type === "online_users") {
             handleUserUpdate(data.users);
         } else if (data.type === "error") {
@@ -145,7 +145,7 @@ connectWebSocket();
                 }
             });
         } else if (data.type === "public_key") {
-            console.log("New Recipient", data.username, " with key ", data.key);
+            //console.log("New Recipient", data.username, " with key ", data.key);
             const bytes = new Uint8Array(data.key);
             publicKeys[data.username] = await crypto.subtle.importKey(
                 "spki",
@@ -158,7 +158,7 @@ connectWebSocket();
             const username = document.getElementById("username").value;
             const password = document.getElementById("password").value;
             if (!username || !password) return showError("Please enter a username and password.");
-            //socket.send(JSON.stringify({ type: "login-no-captcha", username, password }));
+            ws.send(JSON.stringify({ type: "login-no-captcha", username, password }));
         }
     };
 
@@ -214,7 +214,7 @@ connectWebSocket();
 
             console.log("Sending File...");
             // Send a separate payload to that one user
-            socket.send(JSON.stringify({
+            ws.send(JSON.stringify({
                 type: "file",
                 token,
                 filename: file.name,
@@ -291,7 +291,7 @@ function sendMessage() {
         }));
         document.getElementById("message").value = "";
     }
-    console.log("🔐 Sending encrypted:", message);
+    //console.log("🔐 Sending encrypted:", message);
 }
 // select emoji 
 function toggleEmojiPicker() {

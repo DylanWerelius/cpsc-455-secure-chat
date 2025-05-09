@@ -91,3 +91,13 @@ async function getAllUsers() {
   const rows = await db.all(`SELECT username FROM users`);
   return rows.map(r => r.username);
 }
+
+module.exports = {
+  getDatabase,
+  saveMessage,
+  getMessagesBetween,
+  getRecentMessages,
+  createUser,
+  findUserByUsername,
+  getAllUsers
+};
